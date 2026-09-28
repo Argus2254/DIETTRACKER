@@ -1,0 +1,1881 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>营养智能表格 · 云同步版</title>
+<style>
+  :root {
+    --primary: #1a5cff;
+    --primary-dark: #0d4ce0;
+    --bg: #eef3fa;
+    --panel: #ffffff;
+    --border: #dfe8f3;
+    --border-strong: #c8d7ea;
+    --text: #1e2b3c;
+    --text-soft: #5b6f88;
+    --text-light: #8ba0b8;
+    --green: #1eaa63;
+    --red: #e63946;
+    --shadow-sm: 0 2px 6px rgba(20, 40, 80, 0.05);
+    --shadow-md: 0 8px 24px rgba(20, 40, 80, 0.08);
+    --radius: 16px;
+    --radius-lg: 22px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+                 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 18px 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { max-width: 1180px; margin: 0 auto; }
+
+  /* ---------- 头部 ---------- */
+  .app-header {
+    display: flex; flex-wrap: wrap; gap: 14px;
+    justify-content: space-between; align-items: center; margin-bottom: 18px;
+  }
+  .title-group { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .title-group h1 { font-size: 1.55rem; font-weight: 700; letter-spacing: -0.02em; }
+  .version-tag {
+    font-size: 0.7rem; background: #d7e6ff; color: var(--primary-dark);
+    padding: 2px 10px; border-radius: 30px; font-weight: 600;
+  }
+  .sync-badge {
+    font-size: 0.68rem; padding: 2px 9px; border-radius: 30px;
+    background: #eef4ff; color: var(--text-soft);
+    border: 1px solid var(--border-strong); font-weight: 600;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .sync-badge.on { background: #e6f7ee; color: var(--green); border-color: #a8e6c0; }
+  .sync-badge.off { background: #f2f5f9; color: var(--text-light); }
+  .sync-badge.err { background: #ffe9e9; color: var(--red); border-color: #ffc9c9; }
+
+  .date-nav {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--panel); padding: 5px;
+    border-radius: 14px; box-shadow: var(--shadow-sm);
+  }
+  .nav-btn {
+    border: none; background: transparent; color: var(--text-soft);
+    font-size: 0.95rem; font-weight: 500; padding: 7px 12px;
+    border-radius: 10px; cursor: pointer; transition: all 0.15s;
+    font-family: inherit;
+  }
+  .nav-btn:hover { background: #eef4ff; color: var(--primary); }
+  .nav-btn.today-btn { background: var(--primary); color: white; font-weight: 600; }
+  .nav-btn.today-btn:hover { background: var(--primary-dark); color: white; }
+  .date-input {
+    border: none; font-family: inherit; font-size: 0.9rem;
+    color: var(--text); background: transparent; padding: 6px 4px;
+    outline: none; cursor: pointer; font-weight: 600;
+  }
+
+  /* ---------- 布局 ---------- */
+  .layout {
+    display: grid; grid-template-columns: 1.05fr 0.95fr;
+    gap: 18px; align-items: start;
+  }
+  @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--panel); border-radius: var(--radius-lg);
+    padding: 18px 16px; box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .panel-header h2 { font-size: 1.05rem; font-weight: 700; color: var(--text); }
+  .search-input {
+    flex: 1; min-width: 140px; border: 1px solid var(--border-strong);
+    background: #f8fbff; border-radius: 10px; padding: 7px 12px;
+    font-size: 0.85rem; font-family: inherit; color: var(--text);
+    outline: none; transition: all 0.15s;
+  }
+  .search-input:focus {
+    border-color: var(--primary); background: white;
+    box-shadow: 0 0 0 3px rgba(26, 92, 255, 0.1);
+  }
+
+  /* ---------- 食物库 ---------- */
+  .food-list {
+    max-height: 560px; overflow-y: auto;
+    padding-right: 6px; margin-right: -6px;
+  }
+  .food-category {
+    font-size: 0.72rem; font-weight: 700; color: var(--text-light);
+    letter-spacing: 0.08em; margin: 14px 0 6px 6px; text-transform: uppercase;
+  }
+  .food-category:first-child { margin-top: 0; }
+  .food-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #f9fcff; border: 1px solid var(--border);
+    border-radius: 14px; padding: 11px 14px; margin-bottom: 8px;
+    cursor: pointer; transition: all 0.12s;
+  }
+  .food-item:hover {
+    background: #eef5ff; border-color: #aac8ff; transform: translateX(2px);
+  }
+  .food-info { flex: 1; min-width: 0; }
+  .food-name {
+    font-weight: 600; font-size: 0.92rem; margin-bottom: 5px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .nutri-row {
+    display: flex; gap: 12px; font-size: 0.76rem;
+    color: var(--text-soft); flex-wrap: wrap;
+  }
+  .nutri-row b { color: var(--text); font-weight: 700; }
+  .add-btn {
+    width: 32px; height: 32px; border-radius: 50%; background: white;
+    border: 1.5px solid var(--primary); color: var(--primary);
+    font-size: 1.25rem; font-weight: 500; display: flex;
+    align-items: center; justify-content: center; cursor: pointer;
+    flex-shrink: 0; margin-left: 10px; line-height: 1;
+    transition: all 0.15s; font-family: inherit;
+  }
+  .add-btn:hover { background: var(--primary); color: white; transform: scale(1.1); }
+
+  /* ---------- 汇总卡片 ---------- */
+  .summary-cards {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 9px; margin-bottom: 18px;
+  }
+  .card {
+    background: #f5f9ff; border: 1px solid #d6e5f8;
+    border-radius: 14px; padding: 11px 10px; text-align: center;
+    transition: all 0.2s;
+  }
+  .card-over { background: #fff3f3; border-color: #ffc9c9; }
+  .card-label {
+    font-size: 0.7rem; font-weight: 700; color: var(--text-soft);
+    letter-spacing: 0.03em; margin-bottom: 5px;
+  }
+  .card-value {
+    font-size: 1.25rem; font-weight: 700; color: var(--text);
+    line-height: 1.15; margin-bottom: 7px;
+  }
+  .card-unit { font-size: 0.66rem; color: var(--text-light); font-weight: 500; white-space: nowrap; }
+  .progress { height: 5px; background: #e2ecf8; border-radius: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--green); border-radius: 10px; transition: width 0.3s, background 0.3s; }
+  .progress-fill.fill-over { background: var(--red); }
+  .card-over .card-value { color: var(--red); }
+
+  /* ---------- 已选列表 ---------- */
+  .selected-header {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 0.85rem; font-weight: 600; color: var(--text-soft);
+    padding: 0 4px 10px; border-bottom: 1px solid var(--border);
+  }
+  .count-badge {
+    background: #e3edfe; color: var(--primary-dark);
+    padding: 2px 12px; border-radius: 30px;
+    font-size: 0.78rem; font-weight: 700;
+  }
+  .selected-list {
+    max-height: 320px; overflow-y: auto;
+    padding: 12px 0; min-height: 80px;
+  }
+  .selected-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: white; border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; gap: 8px;
+  }
+  .selected-info { flex: 1; min-width: 0; }
+  .selected-name {
+    font-weight: 600; font-size: 0.88rem; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .portion-badge {
+    background: var(--primary); color: white; font-size: 0.68rem;
+    padding: 1px 9px; border-radius: 20px; font-weight: 700;
+  }
+  .selected-nutri { display: flex; gap: 8px; font-size: 0.7rem; color: var(--text-soft); flex-wrap: wrap; }
+  .selected-nutri span { background: #f0f5fc; padding: 2px 8px; border-radius: 20px; }
+  .selected-actions { display: flex; gap: 3px; flex-shrink: 0; }
+  .qty-btn {
+    width: 26px; height: 26px; border-radius: 8px;
+    border: 1px solid var(--border-strong); background: white;
+    color: var(--text-soft); font-size: 0.9rem; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; transition: all 0.12s; line-height: 1;
+    font-family: inherit;
+  }
+  .qty-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+  .qty-minus:hover { background: #ff9800; border-color: #ff9800; }
+  .remove-btn {
+    width: 26px; height: 26px; border-radius: 8px; border: none;
+    background: transparent; color: #c0cfe0; font-size: 0.85rem;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; transition: all 0.12s; font-family: inherit;
+  }
+  .remove-btn:hover { background: #ffe6e6; color: var(--red); }
+  .empty-message {
+    text-align: center; color: var(--text-light); font-size: 0.85rem;
+    padding: 30px 16px; background: #f8fbff;
+    border: 1px dashed var(--border-strong); border-radius: 12px;
+  }
+  .empty-message p { margin-bottom: 12px; }
+  .empty-message .btn-inline {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--primary); color: white; border: none;
+    padding: 8px 18px; border-radius: 30px; font-size: 0.82rem;
+    font-weight: 600; cursor: pointer; transition: all 0.15s;
+    font-family: inherit;
+  }
+  .empty-message .btn-inline:hover { background: var(--primary-dark); }
+
+  /* ---------- 按钮 ---------- */
+  .action-buttons { display: flex; gap: 9px; margin-top: 8px; }
+  .btn {
+    flex: 1; padding: 10px 12px; border-radius: 12px;
+    font-size: 0.85rem; font-weight: 600; border: none;
+    cursor: pointer; display: inline-flex; align-items: center;
+    justify-content: center; gap: 5px; transition: all 0.15s;
+    font-family: inherit;
+  }
+  .btn-secondary { background: #eef4fc; color: #3b5677; border: 1px solid var(--border-strong); }
+  .btn-secondary:hover { background: #e2ebf5; color: var(--text); }
+  .btn-danger { background: #fff0f0; color: var(--red); border: 1px solid #ffd4d4; }
+  .btn-danger:hover { background: #ffe0e0; }
+  .btn-outline {
+    flex: none; background: white; border: 1px solid var(--border-strong);
+    color: var(--text-soft); padding: 9px 16px; border-radius: 12px;
+    font-size: 0.83rem;
+  }
+  .btn-outline:hover { border-color: var(--primary); color: var(--primary); background: #f5f9ff; }
+  .btn-primary { background: var(--primary); color: white; box-shadow: 0 6px 14px rgba(26, 92, 255, 0.25); }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-full { width: 100%; margin-top: 6px; }
+  .btn-ghost {
+    background: transparent; border: none; color: var(--primary);
+    padding: 6px 10px; border-radius: 8px; font-size: 0.78rem;
+    cursor: pointer; font-weight: 600; transition: all 0.15s;
+    font-family: inherit;
+  }
+  .btn-ghost:hover { background: #eef4ff; }
+
+  /* ---------- 底部 ---------- */
+  .app-footer {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    justify-content: space-between; align-items: center; margin-top: 20px;
+  }
+  .footer-left, .footer-right { display: flex; gap: 8px; flex-wrap: wrap; }
+  .footnote {
+    margin-top: 16px; font-size: 0.72rem; color: var(--text-light);
+    text-align: center; line-height: 1.5;
+  }
+
+  /* ---------- 模态框 ---------- */
+  .modal {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15, 25, 45, 0.5); z-index: 100;
+    align-items: center; justify-content: center; padding: 16px;
+    backdrop-filter: blur(2px);
+  }
+  .modal.active { display: flex; }
+  .modal-content {
+    background: white; border-radius: 22px; width: 100%;
+    max-width: 560px; max-height: 85vh; display: flex;
+    flex-direction: column; box-shadow: 0 24px 60px rgba(10, 25, 50, 0.25);
+    animation: pop 0.18s ease-out;
+  }
+  .modal-small { max-width: 420px; }
+  .modal-large { max-width: 680px; }
+  @keyframes pop {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 20px 14px; border-bottom: 1px solid var(--border);
+  }
+  .modal-header h3 { font-size: 1.05rem; font-weight: 700; }
+  .modal-close {
+    width: 32px; height: 32px; border-radius: 50%; border: none;
+    background: #f0f4f9; color: var(--text-soft); font-size: 1rem;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; transition: all 0.15s; font-family: inherit;
+  }
+  .modal-close:hover { background: #ffe6e6; color: var(--red); }
+  .modal-body { padding: 16px 20px 20px; overflow-y: auto; }
+
+  /* ---------- 食物管理 ---------- */
+  .food-form {
+    background: #f5f9ff; border: 1px solid #d6e5f8;
+    border-radius: 16px; padding: 14px 16px; margin-bottom: 14px;
+    display: none;
+  }
+  .food-form.active { display: block; }
+  .food-form h4 {
+    font-size: 0.9rem; font-weight: 700; color: var(--text);
+    margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+  }
+  .form-row { margin-bottom: 10px; }
+  .form-row label {
+    display: block; font-size: 0.75rem; font-weight: 600;
+    color: var(--text-soft); margin-bottom: 5px;
+  }
+  .form-row input {
+    width: 100%; border: 1px solid var(--border-strong);
+    border-radius: 10px; padding: 9px 12px; font-size: 0.88rem;
+    font-family: inherit; color: var(--text); background: white;
+    outline: none; transition: all 0.15s;
+  }
+  .form-row input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26, 92, 255, 0.1);
+  }
+  .form-row.three-col {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+  }
+  .form-row.three-col label { font-size: 0.7rem; }
+  .form-actions {
+    display: flex; gap: 8px; margin-top: 12px;
+  }
+  .required { color: var(--red); }
+  .food-manage-list { display: flex; flex-direction: column; gap: 8px; }
+  .fm-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #fbfdff; border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px 14px; gap: 10px;
+    transition: all 0.12s;
+  }
+  .fm-item:hover { border-color: #aac8ff; background: #f5f9ff; }
+  .fm-info { flex: 1; min-width: 0; }
+  .fm-name {
+    font-weight: 600; font-size: 0.88rem;
+    margin-bottom: 5px; display: flex; align-items: center;
+    gap: 8px; flex-wrap: wrap;
+  }
+  .fm-cat {
+    font-size: 0.65rem; background: #e9f0fa; color: var(--text-soft);
+    padding: 1px 8px; border-radius: 20px; font-weight: 600;
+  }
+  .fm-nutri {
+    display: flex; gap: 8px; font-size: 0.72rem;
+    color: var(--text-soft); flex-wrap: wrap;
+  }
+  .fm-nutri span { background: #f0f5fc; padding: 2px 8px; border-radius: 20px; }
+  .fm-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .fm-btn {
+    padding: 5px 12px; border-radius: 8px;
+    border: 1px solid var(--border-strong); background: white;
+    color: var(--text-soft); font-size: 0.72rem; font-weight: 600;
+    cursor: pointer; transition: all 0.12s; font-family: inherit;
+  }
+  .fm-btn:hover { border-color: var(--primary); color: var(--primary); background: #f5f9ff; }
+  .fm-btn-danger:hover { border-color: var(--red); color: var(--red); background: #fff5f5; }
+
+  /* ---------- 历史记录 ---------- */
+  .history-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border-radius: 14px;
+    border: 1px solid var(--border); margin-bottom: 8px;
+    background: #fbfdff; transition: all 0.12s;
+  }
+  .history-row:hover { border-color: #aac8ff; background: #f5f9ff; }
+  .history-current { background: #f0f6ff; border-color: var(--primary); }
+  .history-date { flex: 1; min-width: 0; }
+  .history-date-main { font-weight: 600; font-size: 0.86rem; margin-bottom: 3px; }
+  .history-date-sub { font-size: 0.72rem; color: var(--text-light); }
+  .history-nutri {
+    display: flex; gap: 6px; font-size: 0.72rem;
+    color: var(--text-soft); flex-wrap: wrap; justify-content: flex-end;
+  }
+  .history-nutri span {
+    background: #f0f5fc; padding: 2px 8px;
+    border-radius: 20px; white-space: nowrap;
+  }
+  .history-nutri .over { background: #ffe6e6; color: var(--red); font-weight: 600; }
+  .history-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .btn-mini {
+    padding: 5px 12px; border-radius: 8px;
+    border: 1px solid var(--border-strong); background: white;
+    color: var(--text-soft); font-size: 0.72rem; font-weight: 600;
+    cursor: pointer; transition: all 0.12s; font-family: inherit;
+  }
+  .btn-mini:hover { border-color: var(--primary); color: var(--primary); background: #f5f9ff; }
+  .btn-mini-danger:hover { border-color: var(--red); color: var(--red); background: #fff5f5; }
+
+  /* ---------- 目标设置表单 ---------- */
+  .form-field {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border);
+    font-size: 0.9rem; color: var(--text-soft); font-weight: 500;
+  }
+  .form-field:last-of-type { border-bottom: none; }
+  .form-field input[type="number"] {
+    width: 130px; border: 1px solid var(--border-strong);
+    border-radius: 10px; padding: 8px 12px; font-size: 0.9rem;
+    font-family: inherit; color: var(--text); font-weight: 600;
+    text-align: right; outline: none; transition: all 0.15s;
+  }
+  .form-field input[type="number"]:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26, 92, 255, 0.1);
+  }
+  .form-field input[type="text"] {
+    width: 100%; border: 1px solid var(--border-strong);
+    border-radius: 10px; padding: 8px 12px; font-size: 0.85rem;
+    font-family: inherit; color: var(--text); outline: none;
+    transition: all 0.15s;
+  }
+  .form-field input[type="text"]:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26, 92, 255, 0.1);
+  }
+  .form-field.stacked {
+    flex-direction: column; align-items: flex-start; gap: 6px;
+  }
+  .form-field.stacked span { font-size: 0.8rem; font-weight: 600; color: var(--text-soft); }
+  .checkbox-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0; border-bottom: 1px solid var(--border);
+  }
+  .checkbox-row span { font-size: 0.9rem; font-weight: 600; color: var(--text-soft); }
+  .checkbox-row input[type="checkbox"] {
+    width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer;
+  }
+  .help-text {
+    font-size: 0.74rem; color: var(--text-light);
+    line-height: 1.55; margin-top: 10px;
+    background: #f5f9ff; border: 1px solid #d6e5f8;
+    padding: 10px 12px; border-radius: 10px;
+  }
+  .help-text a { color: var(--primary); text-decoration: none; }
+  .help-text a:hover { text-decoration: underline; }
+
+  /* ---------- 日历 ---------- */
+  .calendar-nav {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .calendar-month {
+    font-size: 1.05rem; font-weight: 700; flex: 1;
+    text-align: center; min-width: 130px;
+  }
+  .calendar-weekdays {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 6px; margin-bottom: 6px;
+  }
+  .calendar-weekday {
+    text-align: center; font-size: 0.72rem; font-weight: 700;
+    color: var(--text-light); padding: 4px 0;
+  }
+  .calendar-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+  }
+  .calendar-day {
+    min-height: 64px; border-radius: 12px;
+    border: 1px solid var(--border); background: #fbfdff;
+    padding: 6px 4px; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    cursor: pointer; transition: all 0.12s; position: relative;
+  }
+  .calendar-day:hover {
+    border-color: var(--primary); background: #f5f9ff; transform: translateY(-1px);
+  }
+  .calendar-day.empty { background: transparent; border: none; cursor: default; }
+  .calendar-day.empty:hover { transform: none; border: none; }
+  .calendar-day.today {
+    border-color: var(--primary); background: #eef4ff;
+    box-shadow: 0 0 0 2px rgba(26, 92, 255, 0.15);
+  }
+  .calendar-day.selected { border-color: var(--primary); background: var(--primary); }
+  .calendar-day.selected .cal-date-num,
+  .calendar-day.selected .cal-calories { color: white; }
+  .calendar-day.selected .cal-calories.empty-cal { color: rgba(255,255,255,0.65); }
+  .calendar-day.future { opacity: 0.45; }
+  .cal-date-num { font-size: 0.85rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+  .cal-calories {
+    font-size: 0.65rem; color: var(--primary-dark);
+    font-weight: 700; margin-top: 5px; text-align: center; line-height: 1.15;
+  }
+  .cal-calories.over { color: var(--red); }
+  .cal-calories.empty-cal { color: #c8d7ea; font-weight: 500; }
+  .cal-legend {
+    display: flex; gap: 14px; justify-content: center;
+    margin-top: 16px; font-size: 0.72rem;
+    color: var(--text-light); flex-wrap: wrap;
+  }
+  .cal-legend-item { display: flex; align-items: center; gap: 5px; }
+  .cal-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  /* ---------- 滚动条 ---------- */
+  .food-list::-webkit-scrollbar,
+  .selected-list::-webkit-scrollbar,
+  .modal-body::-webkit-scrollbar { width: 6px; }
+  .food-list::-webkit-scrollbar-track,
+  .selected-list::-webkit-scrollbar-track,
+  .modal-body::-webkit-scrollbar-track { background: transparent; }
+  .food-list::-webkit-scrollbar-thumb,
+  .selected-list::-webkit-scrollbar-thumb,
+  .modal-body::-webkit-scrollbar-thumb { background: #c8d7ea; border-radius: 10px; }
+  .food-list::-webkit-scrollbar-thumb:hover,
+  .selected-list::-webkit-scrollbar-thumb:hover,
+  .modal-body::-webkit-scrollbar-thumb:hover { background: #a0b5cf; }
+
+  @media (max-width: 520px) {
+    .calendar-day { min-height: 56px; padding: 4px 2px; }
+    .cal-date-num { font-size: 0.78rem; }
+    .cal-calories { font-size: 0.58rem; }
+    .calendar-grid { gap: 4px; }
+    .calendar-weekdays { gap: 4px; }
+    .form-row.three-col { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ============ 头部 ============ -->
+  <header class="app-header">
+    <div class="title-group">
+      <h1>🥗 营养智能表格</h1>
+      <span class="version-tag">云同步版</span>
+      <span class="sync-badge off" id="syncBadge">☁️ 未启用同步</span>
+    </div>
+    <div class="date-nav">
+      <button id="prevDayBtn" class="nav-btn" title="前一天">◀</button>
+      <input type="date" id="datePicker" class="date-input">
+      <button id="nextDayBtn" class="nav-btn" title="后一天">▶</button>
+      <button id="todayBtn" class="nav-btn today-btn">今天</button>
+    </div>
+  </header>
+
+  <!-- ============ 主体 ============ -->
+  <div class="layout">
+    <section class="panel">
+      <div class="panel-header">
+        <h2>📋 食物库</h2>
+        <input type="text" id="foodSearch" class="search-input" placeholder="🔍 搜索食物...">
+      </div>
+      <div class="food-list" id="foodListContainer"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2 id="currentDateTitle">📊 当日摄入</h2>
+      </div>
+      <div class="summary-cards" id="summaryCards"></div>
+      <div class="selected-header">
+        <span>🍽️ 已选食物</span>
+        <span class="count-badge" id="selectedCount">0</span>
+      </div>
+      <div class="selected-list" id="selectedListContainer"></div>
+      <div class="action-buttons">
+        <button class="btn btn-secondary" id="copyYesterdayBtn">📋 复制昨日</button>
+        <button class="btn btn-danger" id="clearDayBtn">🧹 清空当日</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ 底部工具栏 ============ -->
+  <footer class="app-footer">
+    <div class="footer-left">
+      <button class="btn btn-outline" id="manageFoodsBtn">🍱 管理食物库</button>
+      <button class="btn btn-outline" id="calendarBtn">📅 日历</button>
+      <button class="btn btn-outline" id="historyBtn">🗂️ 历史</button>
+      <button class="btn btn-outline" id="syncBtn">☁️ 同步设置</button>
+    </div>
+    <div class="footer-right">
+      <button class="btn btn-outline" id="exportBtn">💾 导出</button>
+      <button class="btn btn-outline" id="importBtn">📂 导入</button>
+      <input type="file" id="importFile" accept=".json" hidden>
+      <button class="btn btn-outline" id="goalsBtn">🎯 目标</button>
+    </div>
+  </footer>
+  <div class="footnote">
+    数据优先保存在本机浏览器，启用云同步后可跨设备互通。<br>
+    快捷键：← / → 切换日期 · Esc 关闭弹窗
+  </div>
+</div>
+
+<!-- ============ 同步设置弹窗 ============ -->
+<div class="modal" id="syncModal">
+  <div class="modal-content modal-small">
+    <div class="modal-header">
+      <h3>☁️ 云同步设置</h3>
+      <button class="modal-close" id="closeSync">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="checkbox-row">
+        <span>启用云同步</span>
+        <input type="checkbox" id="syncEnabled">
+      </div>
+
+      <div class="form-field stacked" style="border:none;padding-top:14px;">
+        <span>JSONBin API Key（Master Key）</span>
+        <input type="text" id="syncApiKey" placeholder="$2a$10$...">
+      </div>
+
+      <div class="form-field stacked" style="border:none;">
+        <span>Bin ID</span>
+        <input type="text" id="syncBinId" placeholder="例如：65f3a2b1c0e6d8a1b2c3d4e5">
+      </div>
+
+      <div class="help-text">
+        未注册？前往 <a href="https://jsonbin.io" target="_blank" rel="noopener">jsonbin.io</a> 免费注册 → 创建 Master Key → 创建一个空 Bin → 把 Key 和 Bin ID 粘贴到上面即可。<br>
+        API Key 仅保存在本机浏览器，不会外传。
+      </div>
+
+      <button class="btn btn-primary btn-full" id="saveSyncBtn">保存并立即同步</button>
+      <button class="btn btn-secondary btn-full" id="manualUploadBtn">⬆️ 上传本地数据到云端</button>
+      <button class="btn btn-secondary btn-full" id="manualDownloadBtn">⬇️ 从云端拉取并覆盖本地</button>
+      <button class="btn btn-danger btn-full" id="clearSyncBtn">🔌 断开同步</button>
+
+      <div id="syncStatus" style="text-align:center;font-size:0.78rem;margin-top:12px;color:var(--text-light);min-height:18px;">
+        尚未同步
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 食物管理弹窗 ============ -->
+<div class="modal" id="foodsModal">
+  <div class="modal-content modal-large">
+    <div class="modal-header">
+      <h3>🍱 食物库管理</h3>
+      <button class="modal-close" id="closeFoods">✕</button>
+    </div>
+    <div class="modal-body">
+      <button class="btn btn-primary btn-full" id="showFormBtn" style="margin-bottom:14px;">+ 添加新食物</button>
+      <div class="food-form" id="foodForm">
+        <h4 id="foodFormTitle">➕ 添加新食物</h4>
+        <div class="form-row">
+          <label>食物名称 <span class="required">*</span></label>
+          <input type="text" id="foodNameInput" placeholder="如：鸡胸肉 100g">
+        </div>
+        <div class="form-row">
+          <label>分类（可选）</label>
+          <input type="text" id="foodCategoryInput" placeholder="如：主食 / 肉蛋奶 / 蔬菜 / 水果">
+        </div>
+        <div class="form-row three-col">
+          <div>
+            <label>能量 (kcal)</label>
+            <input type="number" id="foodEnergyInput" min="0" step="0.1" placeholder="0">
+          </div>
+          <div>
+            <label>蛋白质 (g)</label>
+            <input type="number" id="foodProteinInput" min="0" step="0.1" placeholder="0">
+          </div>
+          <div>
+            <label>钠 (mg)</label>
+            <input type="number" id="foodSodiumInput" min="0" step="0.1" placeholder="0">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" id="cancelFoodBtn" style="flex:1;">取消</button>
+          <button class="btn btn-primary" id="saveFoodBtn" style="flex:2;">保存</button>
+        </div>
+      </div>
+      <div class="food-manage-list" id="foodsListContainer"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 日历弹窗 ============ -->
+<div class="modal" id="calendarModal">
+  <div class="modal-content modal-large">
+    <div class="modal-header">
+      <h3>📅 营养日历 · 每日总热量</h3>
+      <button class="modal-close" id="closeCalendar">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="calendar-nav">
+        <button class="nav-btn" id="calPrevMonth">◀</button>
+        <div class="calendar-month" id="calMonthLabel"></div>
+        <button class="nav-btn" id="calNextMonth">▶</button>
+        <button class="nav-btn today-btn" id="calTodayBtn" style="margin-left:6px;">今天</button>
+      </div>
+      <div class="calendar-weekdays" id="calendarWeekdays"></div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+      <div class="cal-legend">
+        <div class="cal-legend-item"><span class="cal-dot" style="background:#eef4ff;border:1px solid var(--primary);"></span>今天</div>
+        <div class="cal-legend-item"><span class="cal-dot" style="background:#fbfdff;border:1px solid var(--border-strong);"></span>有记录</div>
+        <div class="cal-legend-item"><span class="cal-dot" style="background:#fff3f3;border:1px solid #ffc9c9;"></span>超热量目标</div>
+        <div class="cal-legend-item"><span class="cal-dot" style="background:#f8fbff;border:1px dashed #c8d7ea;"></span>无记录</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 历史记录弹窗 ============ -->
+<div class="modal" id="historyModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>🗂️ 历史列表</h3>
+      <button class="modal-close" id="closeHistory">✕</button>
+    </div>
+    <div class="modal-body" id="historyList"></div>
+  </div>
+</div>
+
+<!-- ============ 目标设置弹窗 ============ -->
+<div class="modal" id="goalsModal">
+  <div class="modal-content modal-small">
+    <div class="modal-header">
+      <h3>🎯 每日目标</h3>
+      <button class="modal-close" id="closeGoals">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="form-field">
+        <span>⚡ 能量 (kcal)</span>
+        <input type="number" id="goalEnergy" min="0" step="10">
+      </label>
+      <label class="form-field">
+        <span>🥩 蛋白质 (g)</span>
+        <input type="number" id="goalProtein" min="0" step="1">
+      </label>
+      <label class="form-field">
+        <span>🧂 钠 (mg)</span>
+        <input type="number" id="goalSodium" min="0" step="100">
+      </label>
+      <button class="btn btn-primary btn-full" id="saveGoalsBtn">保存目标</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ============================================================
+     1. 存储键
+     ============================================================ */
+  const FOODS_KEY  = 'diet-tracker-foods-v1';
+  const DATA_KEY   = 'diet-tracker-data-v1';
+  const GOALS_KEY  = 'diet-tracker-goals-v1';
+  const SYNC_KEY   = 'diet-tracker-sync-v1';
+
+  /* ============================================================
+     2. 工具函数
+     ============================================================ */
+  function toDateStr(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function todayStr() { return toDateStr(new Date()); }
+
+  const $ = id => document.getElementById(id);
+
+  function fmtNum(n) {
+    if (n === 0) return '0';
+    if (Number.isInteger(n)) return String(n);
+    return n.toFixed(1);
+  }
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+  function formatDateLabel(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const today = todayStr();
+    const yd = new Date(); yd.setDate(yd.getDate() - 1);
+    const yesterday = toDateStr(yd);
+    const weekdays = ['周日','周一','周二','周三','周四','周五','周六'];
+    let prefix = '';
+    if (dateStr === today) prefix = '今天 · ';
+    else if (dateStr === yesterday) prefix = '昨天 · ';
+    return prefix + dateStr + ' ' + weekdays[d.getDay()];
+  }
+
+  /* ============================================================
+     3. 状态
+     ============================================================ */
+  let foods = [];
+  let foodMap = new Map();
+  let allData = {};
+  let goals = { energy: 2000, protein: 75, sodium: 2000 };
+
+  let currentDate = todayStr();
+  let searchQuery = '';
+  let calYear, calMonth;
+  let editingFoodId = null;
+
+  /* ---------- 同步状态 ---------- */
+  let syncConfig = {
+    enabled: false,
+    apiKey: '',
+    binId: '',
+    lastSync: null,          // ISO 字符串：本机上次成功同步时间
+    lastCloudModified: null, // ISO 字符串：云端数据最后修改时间
+  };
+  let syncTimer = null;
+  let isSyncing = false;
+  let initialCloudCheckDone = false;
+
+  /* ============================================================
+     4. 本地存取
+     ============================================================ */
+  function loadFoods() {
+    try {
+      const raw = localStorage.getItem(FOODS_KEY);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  }
+  function saveFoods() {
+    try {
+      localStorage.setItem(FOODS_KEY, JSON.stringify(foods));
+    } catch (e) { console.warn('保存食物库失败', e); }
+    rebuildFoodMap();
+    scheduleSync();
+  }
+  function rebuildFoodMap() {
+    foodMap = new Map(foods.map(f => [f.id, f]));
+  }
+
+  function loadAllData() {
+    try {
+      const raw = localStorage.getItem(DATA_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+  function saveAllData() {
+    try {
+      localStorage.setItem(DATA_KEY, JSON.stringify(allData));
+    } catch (e) { console.warn('保存数据失败', e); }
+    scheduleSync();
+  }
+
+  function loadGoals() {
+    try {
+      const raw = localStorage.getItem(GOALS_KEY);
+      return raw ? JSON.parse(raw) : { energy: 2000, protein: 75, sodium: 2000 };
+    } catch (e) { return { energy: 2000, protein: 75, sodium: 2000 }; }
+  }
+  function saveGoals() {
+    try { localStorage.setItem(GOALS_KEY, JSON.stringify(goals)); } catch (e) {}
+    scheduleSync();
+  }
+
+  function loadSyncConfig() {
+    try {
+      const raw = localStorage.getItem(SYNC_KEY);
+      if (raw) syncConfig = Object.assign(syncConfig, JSON.parse(raw));
+    } catch (e) {}
+  }
+  function saveSyncConfig() {
+    try { localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); } catch (e) {}
+  }
+
+  /* ---------- 初始化数据 ---------- */
+  foods    = loadFoods();
+  rebuildFoodMap();
+  allData  = loadAllData();
+  goals    = loadGoals();
+  loadSyncConfig();
+
+  /* ============================================================
+     5. 云同步核心
+     ============================================================ */
+  function updateSyncBadge() {
+    const el = $('syncBadge');
+    if (!el) return;
+    el.className = 'sync-badge';
+    if (!syncConfig.enabled) {
+      el.classList.add('off');
+      el.textContent = '☁️ 未启用同步';
+    } else if (isSyncing) {
+      el.classList.add('on');
+      el.textContent = '☁️ 同步中…';
+    } else if (syncConfig.lastSync) {
+      el.classList.add('on');
+      const t = new Date(syncConfig.lastSync).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+      el.textContent = '☁️ 已同步 ' + t;
+    } else {
+      el.classList.add('on');
+      el.textContent = '☁️ 已启用';
+    }
+  }
+
+  function showSyncStatus(text, color) {
+    const el = $('syncStatus');
+    if (!el) return;
+    el.textContent = text || '';
+    el.style.color = color || 'var(--text-light)';
+  }
+
+  function buildPayload() {
+    return {
+      version: 1,
+      lastModified: new Date().toISOString(),
+      device: (navigator.userAgent || '').slice(0, 80),
+      foods: foods,
+      allData: allData,
+      goals: goals,
+    };
+  }
+
+  async function uploadToCloud(opts) {
+    opts = opts || {};
+    if (!syncConfig.enabled || !syncConfig.apiKey || !syncConfig.binId) {
+      if (!opts.silent) showSyncStatus('未配置同步信息', 'var(--red)');
+      return false;
+    }
+    if (isSyncing) return false;
+    isSyncing = true;
+    updateSyncBadge();
+    if (!opts.silent) showSyncStatus('上传中…', 'var(--text-soft)');
+
+    try {
+      const payload = buildPayload();
+      const res = await fetch(`https://api.jsonbin.io/v3/b/${syncConfig.binId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': syncConfig.apiKey,
+        },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status} ${txt.slice(0, 120)}`);
+      }
+      syncConfig.lastSync = payload.lastModified;
+      syncConfig.lastCloudModified = payload.lastModified;
+      saveSyncConfig();
+      if (!opts.silent) {
+        showSyncStatus('✓ 已上传 ' + new Date().toLocaleTimeString('zh-CN'), 'var(--green)');
+      }
+      return true;
+    } catch (e) {
+      console.error('上传失败', e);
+      if (!opts.silent) showSyncStatus('⚠ 上传失败：' + e.message, 'var(--red)');
+      return false;
+    } finally {
+      isSyncing = false;
+      updateSyncBadge();
+    }
+  }
+
+  async function fetchFromCloud() {
+    if (!syncConfig.apiKey || !syncConfig.binId) return null;
+    try {
+      const res = await fetch(`https://api.jsonbin.io/v3/b/${syncConfig.binId}/latest`, {
+        headers: { 'X-Master-Key': syncConfig.apiKey },
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status} ${txt.slice(0, 120)}`);
+      }
+      const json = await res.json();
+      return json && json.record ? json.record : null;
+    } catch (e) {
+      console.error('拉取失败', e);
+      throw e;
+    }
+  }
+
+  function applyCloudData(cloud) {
+    if (!cloud) return;
+    if (Array.isArray(cloud.foods)) {
+      foods = cloud.foods;
+      try { localStorage.setItem(FOODS_KEY, JSON.stringify(foods)); } catch (e) {}
+      rebuildFoodMap();
+    }
+    if (cloud.allData && typeof cloud.allData === 'object') {
+      allData = cloud.allData;
+      try { localStorage.setItem(DATA_KEY, JSON.stringify(allData)); } catch (e) {}
+    }
+    if (cloud.goals) {
+      goals = Object.assign({}, goals, cloud.goals);
+      try { localStorage.setItem(GOALS_KEY, JSON.stringify(goals)); } catch (e) {}
+    }
+    if (cloud.lastModified) {
+      syncConfig.lastSync = cloud.lastModified;
+      syncConfig.lastCloudModified = cloud.lastModified;
+      saveSyncConfig();
+    }
+  }
+
+  // 防抖自动上传
+  function scheduleSync() {
+    if (!syncConfig.enabled) return;
+    if (!syncConfig.apiKey || !syncConfig.binId) return;
+    if (syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => {
+      uploadToCloud({ silent: true });
+    }, 2000);
+  }
+
+  // 启动时检查云端
+  async function initialCloudCheck() {
+    if (!syncConfig.enabled || !syncConfig.apiKey || !syncConfig.binId) return;
+    if (initialCloudCheckDone) return;
+    initialCloudCheckDone = true;
+
+    showSyncStatus('正在检查云端数据…', 'var(--text-soft)');
+    try {
+      const cloud = await fetchFromCloud();
+      if (!cloud) {
+        // 云端为空，把本地推上去
+        showSyncStatus('云端为空，正在上传本地数据…', 'var(--text-soft)');
+        await uploadToCloud({ silent: true });
+        return;
+      }
+
+      const localTime = syncConfig.lastCloudModified ? new Date(syncConfig.lastCloudModified).getTime() : 0;
+      const cloudTime = cloud.lastModified ? new Date(cloud.lastModified).getTime() : 0;
+
+      if (cloudTime > localTime + 1000) {
+        // 云端更新
+        const localCount = Object.keys(allData).length;
+        const cloudCount = cloud.allData ? Object.keys(cloud.allData).length : 0;
+        const msg = `检测到云端有更新的数据：\n\n` +
+                    `· 云端更新于：${new Date(cloud.lastModified).toLocaleString('zh-CN')}\n` +
+                    `· 本地记录 ${localCount} 天，云端记录 ${cloudCount} 天\n` +
+                    `· 本地食物 ${foods.length} 种，云端食物 ${(cloud.foods || []).length} 种\n\n` +
+                    `是否用云端数据覆盖本地？\n\n` +
+                    `点击"确定"：采用云端数据（推荐）\n` +
+                    `点击"取消"：保留本地数据并上传到云端`;
+        if (confirm(msg)) {
+          applyCloudData(cloud);
+          renderFoodLibrary();
+          renderAll();
+          showSyncStatus('✓ 已从云端更新 ' + new Date().toLocaleTimeString('zh-CN'), 'var(--green)');
+        } else {
+          await uploadToCloud({ silent: true });
+        }
+      } else {
+        // 本地更新或相同 → 上传
+        await uploadToCloud({ silent: true });
+      }
+    } catch (e) {
+      showSyncStatus('⚠ 检查云端失败：' + e.message, 'var(--red)');
+    }
+  }
+
+  /* ============================================================
+     6. 计算
+     ============================================================ */
+  function getDayItems(date) { return allData[date] || []; }
+  function setDayItems(date, items) {
+    if (items.length === 0) delete allData[date];
+    else allData[date] = items;
+  }
+  function computeTotals(items) {
+    let energy = 0, protein = 0, sodium = 0;
+    items.forEach(it => {
+      const f = foodMap.get(it.foodId);
+      if (!f) return;
+      energy  += f.energy  * it.count;
+      protein += f.protein * it.count;
+      sodium  += f.sodium  * it.count;
+    });
+    return { energy, protein, sodium };
+  }
+  function isFoodUsed(foodId) {
+    for (const date in allData) {
+      if (allData[date].some(it => it.foodId === foodId)) return true;
+    }
+    return false;
+  }
+  function genFoodId() {
+    return 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+  }
+
+  /* ============================================================
+     7. 渲染 - 主界面
+     ============================================================ */
+  function renderDateHeader() {
+    $('datePicker').value = currentDate;
+    $('currentDateTitle').textContent = '📊 ' + formatDateLabel(currentDate);
+  }
+
+  function renderFoodLibrary() {
+    if (foods.length === 0) {
+      $('foodListContainer').innerHTML = `
+        <div class="empty-message">
+          <p>还没有食物，先去添加吧 👇</p>
+          <button class="btn-inline" id="emptyAddFoodBtn">+ 添加第一种食物</button>
+        </div>`;
+      const btn = $('emptyAddFoodBtn');
+      if (btn) btn.addEventListener('click', () => openFoodsModal());
+      return;
+    }
+
+    const q = searchQuery.trim().toLowerCase();
+    const list = q ? foods.filter(f => f.name.toLowerCase().includes(q)) : foods;
+
+    if (list.length === 0) {
+      $('foodListContainer').innerHTML = '<div class="empty-message">未找到匹配的食物</div>';
+      return;
+    }
+
+    const groups = {};
+    list.forEach(f => {
+      const cat = f.category && f.category.trim() ? f.category.trim() : '未分类';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(f);
+    });
+
+    let html = '';
+    for (const cat of Object.keys(groups)) {
+      html += `<div class="food-category">${escapeHtml(cat)}</div>`;
+      groups[cat].forEach(food => {
+        html += `
+          <div class="food-item" data-food-id="${food.id}">
+            <div class="food-info">
+              <div class="food-name">${escapeHtml(food.name)}</div>
+              <div class="nutri-row">
+                <span>⚡ <b>${fmtNum(food.energy)}</b> kcal</span>
+                <span>🥩 <b>${fmtNum(food.protein)}</b> g</span>
+                <span>🧂 <b>${fmtNum(food.sodium)}</b> mg</span>
+              </div>
+            </div>
+            <button class="add-btn" data-action="add" data-food-id="${food.id}" title="添加一份">+</button>
+          </div>`;
+      });
+    }
+    $('foodListContainer').innerHTML = html;
+  }
+
+  function renderDayIntake() {
+    const items = getDayItems(currentDate);
+    const totals = computeTotals(items);
+
+    const cards = [
+      { icon: '⚡', label: '能量',   unit: 'kcal', value: totals.energy,  goal: goals.energy },
+      { icon: '🥩', label: '蛋白质', unit: 'g',    value: totals.protein, goal: goals.protein },
+      { icon: '🧂', label: '钠',     unit: 'mg',   value: totals.sodium,  goal: goals.sodium },
+    ];
+    let cardsHtml = '';
+    cards.forEach(c => {
+      const pct  = c.goal > 0 ? Math.min(100, (c.value / c.goal) * 100) : 0;
+      const over = c.goal > 0 && c.value > c.goal;
+      cardsHtml += `
+        <div class="card ${over ? 'card-over' : ''}">
+          <div class="card-label">${c.icon} ${c.label}</div>
+          <div class="card-value">
+            ${fmtNum(c.value)}
+            <span class="card-unit">/ ${fmtNum(c.goal)} ${c.unit}</span>
+          </div>
+          <div class="progress"><div class="progress-fill ${over ? 'fill-over' : ''}" style="width:${pct}%"></div></div>
+        </div>`;
+    });
+    $('summaryCards').innerHTML = cardsHtml;
+
+    const totalCount = items.reduce((a, b) => a + b.count, 0);
+    $('selectedCount').textContent = totalCount;
+
+    if (items.length === 0) {
+      $('selectedListContainer').innerHTML =
+        '<div class="empty-message">还没有添加食物，点击左侧 “+” 添加</div>';
+      return;
+    }
+
+    let html = '';
+    items.forEach(it => {
+      const food = foodMap.get(it.foodId);
+      const isMissing = !food;
+
+      if (isMissing) {
+        html += `
+          <div class="selected-item" data-food-id="${it.foodId}" style="opacity:0.65;">
+            <div class="selected-info">
+              <div class="selected-name">
+                <span style="color:var(--red);">已删除的食物</span>
+                <span class="portion-badge" style="background:#c0cfe0;">x${it.count}</span>
+              </div>
+              <div class="selected-nutri"><span>营养值已丢失</span></div>
+            </div>
+            <div class="selected-actions">
+              <button class="remove-btn" data-action="remove" data-food-id="${it.foodId}" title="移除">✕</button>
+            </div>
+          </div>`;
+        return;
+      }
+
+      html += `
+        <div class="selected-item" data-food-id="${food.id}">
+          <div class="selected-info">
+            <div class="selected-name">
+              ${escapeHtml(food.name)}
+              <span class="portion-badge">x${it.count}</span>
+            </div>
+            <div class="selected-nutri">
+              <span>⚡ ${fmtNum(food.energy)}</span>
+              <span>🥩 ${fmtNum(food.protein)}</span>
+              <span>🧂 ${fmtNum(food.sodium)}</span>
+            </div>
+          </div>
+          <div class="selected-actions">
+            <button class="qty-btn"       data-action="inc"    data-food-id="${food.id}" title="加一份">+</button>
+            <button class="qty-btn qty-minus" data-action="dec" data-food-id="${food.id}" title="减一份">−</button>
+            <button class="remove-btn"    data-action="remove" data-food-id="${food.id}" title="全部移除">✕</button>
+          </div>
+        </div>`;
+    });
+    $('selectedListContainer').innerHTML = html;
+  }
+
+  function renderAll() {
+    renderDateHeader();
+    renderDayIntake();
+  }
+
+  /* ============================================================
+     8. 渲染 - 食物管理
+     ============================================================ */
+  function renderFoodsManager() {
+    if (foods.length === 0) {
+      $('foodsListContainer').innerHTML =
+        '<div class="empty-message">食物库还是空的，点击上方“添加新食物”开始吧</div>';
+      return;
+    }
+    const sorted = [...foods].sort((a, b) => {
+      const ca = (a.category || '').trim();
+      const cb = (b.category || '').trim();
+      if (ca !== cb) return ca.localeCompare(cb, 'zh-CN');
+      return a.name.localeCompare(b.name, 'zh-CN');
+    });
+
+    let html = '';
+    sorted.forEach(food => {
+      const cat = food.category && food.category.trim() ? food.category.trim() : '未分类';
+      html += `
+        <div class="fm-item">
+          <div class="fm-info">
+            <div class="fm-name">
+              ${escapeHtml(food.name)}
+              <span class="fm-cat">${escapeHtml(cat)}</span>
+            </div>
+            <div class="fm-nutri">
+              <span>⚡ ${fmtNum(food.energy)} kcal</span>
+              <span>🥩 ${fmtNum(food.protein)} g</span>
+              <span>🧂 ${fmtNum(food.sodium)} mg</span>
+            </div>
+          </div>
+          <div class="fm-actions">
+            <button class="fm-btn" data-action="edit-food" data-id="${food.id}">编辑</button>
+            <button class="fm-btn fm-btn-danger" data-action="delete-food" data-id="${food.id}">删除</button>
+          </div>
+        </div>`;
+    });
+    $('foodsListContainer').innerHTML = html;
+  }
+
+  function openFoodsModal() {
+    renderFoodsManager();
+    $('foodsModal').classList.add('active');
+  }
+  function closeFoodsModal() {
+    $('foodsModal').classList.remove('active');
+    hideForm();
+  }
+
+  function showForm(editMode, food) {
+    $('foodForm').classList.add('active');
+    $('showFormBtn').style.display = 'none';
+    if (editMode && food) {
+      editingFoodId = food.id;
+      $('foodFormTitle').textContent = '✏️ 编辑食物';
+      $('foodNameInput').value     = food.name || '';
+      $('foodCategoryInput').value = food.category || '';
+      $('foodEnergyInput').value   = food.energy;
+      $('foodProteinInput').value  = food.protein;
+      $('foodSodiumInput').value   = food.sodium;
+      $('saveFoodBtn').textContent = '保存修改';
+    } else {
+      editingFoodId = null;
+      $('foodFormTitle').textContent = '➕ 添加新食物';
+      $('foodNameInput').value     = '';
+      $('foodCategoryInput').value = '';
+      $('foodEnergyInput').value   = '';
+      $('foodProteinInput').value  = '';
+      $('foodSodiumInput').value   = '';
+      $('saveFoodBtn').textContent = '保存';
+    }
+    setTimeout(() => $('foodNameInput').focus(), 50);
+  }
+  function hideForm() {
+    $('foodForm').classList.remove('active');
+    $('showFormBtn').style.display = 'block';
+    editingFoodId = null;
+  }
+  function saveFoodFromForm() {
+    const name = $('foodNameInput').value.trim();
+    if (!name) {
+      alert('请填写食物名称');
+      $('foodNameInput').focus();
+      return;
+    }
+    const category = $('foodCategoryInput').value.trim();
+    const energy   = parseFloat($('foodEnergyInput').value)  || 0;
+    const protein  = parseFloat($('foodProteinInput').value) || 0;
+    const sodium   = parseFloat($('foodSodiumInput').value)  || 0;
+
+    if (editingFoodId) {
+      const idx = foods.findIndex(f => f.id === editingFoodId);
+      if (idx === -1) return;
+      foods[idx] = { ...foods[idx], name, category, energy, protein, sodium };
+    } else {
+      foods.push({ id: genFoodId(), name, category, energy, protein, sodium });
+    }
+    saveFoods();
+    renderFoodsManager();
+    renderFoodLibrary();
+    renderDayIntake();
+    hideForm();
+  }
+  function deleteFood(foodId) {
+    const food = foodMap.get(foodId);
+    if (!food) return;
+    const used = isFoodUsed(foodId);
+    let msg = `确定删除「${food.name}」吗？`;
+    if (used) {
+      msg += '\n\n⚠️ 该食物已在历史记录中使用，删除后历史记录里对应项会显示为“已删除的食物”，营养值将不再计入。';
+    }
+    if (!confirm(msg)) return;
+    foods = foods.filter(f => f.id !== foodId);
+    saveFoods();
+    renderFoodsManager();
+    renderFoodLibrary();
+    renderDayIntake();
+  }
+
+  /* ============================================================
+     9. 渲染 - 日历
+     ============================================================ */
+  function renderCalendar() {
+    const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+    $('calMonthLabel').textContent = `${calYear}年 ${monthNames[calMonth]}`;
+
+    const weekdays = ['日','一','二','三','四','五','六'];
+    $('calendarWeekdays').innerHTML = weekdays
+      .map(w => `<div class="calendar-weekday">${w}</div>`).join('');
+
+    const firstDay     = new Date(calYear, calMonth, 1);
+    const startWeekday = firstDay.getDay();
+    const daysInMonth  = new Date(calYear, calMonth + 1, 0).getDate();
+    const todayS       = todayStr();
+
+    let html = '';
+    for (let i = 0; i < startWeekday; i++) {
+      html += `<div class="calendar-day empty"></div>`;
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const items   = allData[dStr] || [];
+      const hasData = items.length > 0;
+      const totals  = computeTotals(items);
+      const over    = hasData && goals.energy > 0 && totals.energy > goals.energy;
+      const isToday    = dStr === todayS;
+      const isSelected = dStr === currentDate;
+      const isFuture   = dStr > todayS;
+
+      let classes = 'calendar-day';
+      if (isToday)    classes += ' today';
+      if (isSelected) classes += ' selected';
+      if (isFuture)   classes += ' future';
+
+      const calText = hasData
+        ? `<div class="cal-calories ${over ? 'over' : ''}">${fmtNum(totals.energy)} kcal</div>`
+        : `<div class="cal-calories empty-cal">—</div>`;
+
+      html += `
+        <div class="${classes}" data-date="${dStr}" title="${dStr} ${hasData ? fmtNum(totals.energy)+' kcal' : '无记录'}">
+          <div class="cal-date-num">${day}</div>
+          ${calText}
+        </div>`;
+    }
+    $('calendarGrid').innerHTML = html;
+  }
+
+  function openCalendar() {
+    const d = new Date(currentDate + 'T00:00:00');
+    calYear  = d.getFullYear();
+    calMonth = d.getMonth();
+    renderCalendar();
+    $('calendarModal').classList.add('active');
+  }
+  function closeCalendar() { $('calendarModal').classList.remove('active'); }
+  function shiftCalMonth(delta) {
+    calMonth += delta;
+    if (calMonth < 0)  { calMonth = 11; calYear -= 1; }
+    if (calMonth > 11) { calMonth = 0;  calYear += 1; }
+    renderCalendar();
+  }
+
+  /* ============================================================
+     10. 数据操作
+     ============================================================ */
+  function addPortion(foodId) {
+    if (!foodMap.has(foodId)) return;
+    const items = getDayItems(currentDate);
+    const existing = items.find(i => i.foodId === foodId);
+    if (existing) existing.count += 1;
+    else items.push({ foodId, count: 1 });
+    setDayItems(currentDate, items);
+    saveAllData();
+    renderDayIntake();
+  }
+  function decrementPortion(foodId) {
+    const items = getDayItems(currentDate);
+    const idx = items.findIndex(i => i.foodId === foodId);
+    if (idx === -1) return;
+    if (items[idx].count > 1) items[idx].count -= 1;
+    else items.splice(idx, 1);
+    setDayItems(currentDate, items);
+    saveAllData();
+    renderDayIntake();
+  }
+  function removeAllPortions(foodId) {
+    const items = getDayItems(currentDate).filter(i => i.foodId !== foodId);
+    setDayItems(currentDate, items);
+    saveAllData();
+    renderDayIntake();
+  }
+  function clearDay() {
+    if (!allData[currentDate]) return;
+    if (!confirm(`确定清空 ${currentDate} 的所有记录吗？`)) return;
+    delete allData[currentDate];
+    saveAllData();
+    renderDayIntake();
+  }
+  function copyYesterday() {
+    const d = new Date(currentDate + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    const yStr = toDateStr(d);
+    const yItems = getDayItems(yStr);
+    if (yItems.length === 0) {
+      alert(`昨天（${yStr}）没有记录，无法复制。`);
+      return;
+    }
+    const items = getDayItems(currentDate);
+    if (items.length > 0) {
+      if (!confirm(`当前日期已有 ${items.length} 项记录，复制昨日会叠加份数。继续？`)) return;
+    }
+    yItems.forEach(y => {
+      const ex = items.find(i => i.foodId === y.foodId);
+      if (ex) ex.count += y.count;
+      else items.push({ foodId: y.foodId, count: y.count });
+    });
+    setDayItems(currentDate, items);
+    saveAllData();
+    renderDayIntake();
+  }
+
+  /* ============================================================
+     11. 日期导航
+     ============================================================ */
+  function setDate(dateStr) {
+    currentDate = dateStr;
+    renderAll();
+  }
+  function shiftDate(days) {
+    const d = new Date(currentDate + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    setDate(toDateStr(d));
+  }
+
+  /* ============================================================
+     12. 历史记录
+     ============================================================ */
+  function openHistory() {
+    const dates = Object.keys(allData).sort().reverse();
+    let html = '';
+    if (dates.length === 0) {
+      html = '<div class="empty-message">还没有历史记录</div>';
+    } else {
+      dates.forEach(date => {
+        const items = allData[date];
+        const t = computeTotals(items);
+        const count = items.reduce((a, b) => a + b.count, 0);
+        const over = goals.energy > 0 && t.energy > goals.energy;
+        html += `
+          <div class="history-row ${date === currentDate ? 'history-current' : ''}">
+            <div class="history-date">
+              <div class="history-date-main">${formatDateLabel(date)}</div>
+              <div class="history-date-sub">${items.length} 项 · 共 ${count} 份</div>
+            </div>
+            <div class="history-nutri">
+              <span class="${over ? 'over' : ''}">⚡ ${fmtNum(t.energy)}</span>
+              <span>🥩 ${fmtNum(t.protein)}</span>
+              <span>🧂 ${fmtNum(t.sodium)}</span>
+            </div>
+            <div class="history-actions">
+              <button class="btn-mini" data-action="view" data-date="${date}">查看</button>
+              <button class="btn-mini btn-mini-danger" data-action="del-date" data-date="${date}">删除</button>
+            </div>
+          </div>`;
+      });
+    }
+    $('historyList').innerHTML = html;
+    $('historyModal').classList.add('active');
+  }
+  function closeHistory() { $('historyModal').classList.remove('active'); }
+
+  /* ============================================================
+     13. 导出 / 导入
+     ============================================================ */
+  function exportBackup() {
+    const backup = {
+      version: 3,
+      exportDate: new Date().toISOString(),
+      foods: foods,
+      goals: goals,
+      data: allData,
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `营养备份_${todayStr()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function importBackup(file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const backup = JSON.parse(e.target.result);
+        if (!backup || typeof backup !== 'object') throw new Error('文件格式不正确');
+
+        const importedFoods = Array.isArray(backup.foods) ? backup.foods : null;
+        const importedData  = backup.data && typeof backup.data === 'object' ? backup.data : null;
+        const importedGoals = backup.goals;
+
+        if (!importedFoods && !importedData) throw new Error('文件不包含可导入的数据');
+
+        const msg = `导入将替换当前所有数据：\n` +
+                    `· 当前食物 ${foods.length} 种 → 导入食物 ${importedFoods ? importedFoods.length : 0} 种\n` +
+                    `· 当前记录 ${Object.keys(allData).length} 天 → 导入记录 ${importedData ? Object.keys(importedData).length : 0} 天\n\n确定继续？`;
+        if (!confirm(msg)) return;
+
+        if (importedFoods) { foods = importedFoods; }
+        if (importedData)  { allData = importedData; }
+        if (importedGoals) { goals = Object.assign({}, goals, importedGoals); }
+
+        rebuildFoodMap();
+        try { localStorage.setItem(FOODS_KEY, JSON.stringify(foods)); } catch (e) {}
+        try { localStorage.setItem(DATA_KEY, JSON.stringify(allData)); } catch (e) {}
+        try { localStorage.setItem(GOALS_KEY, JSON.stringify(goals)); } catch (e) {}
+
+        renderFoodLibrary();
+        renderAll();
+        scheduleSync();
+        alert('导入成功！');
+      } catch (err) {
+        alert('导入失败：' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  /* ============================================================
+     14. 目标设置
+     ============================================================ */
+  function openGoals() {
+    $('goalEnergy').value  = goals.energy;
+    $('goalProtein').value = goals.protein;
+    $('goalSodium').value  = goals.sodium;
+    $('goalsModal').classList.add('active');
+  }
+  function closeGoals() { $('goalsModal').classList.remove('active'); }
+  function saveGoalsFromModal() {
+    goals = {
+      energy:  parseFloat($('goalEnergy').value)  || 0,
+      protein: parseFloat($('goalProtein').value) || 0,
+      sodium:  parseFloat($('goalSodium').value)  || 0,
+    };
+    saveGoals();
+    closeGoals();
+    renderDayIntake();
+  }
+
+  /* ============================================================
+     15. 同步设置弹窗
+     ============================================================ */
+  function openSyncModal() {
+    $('syncEnabled').checked = syncConfig.enabled;
+    $('syncApiKey').value    = syncConfig.apiKey || '';
+    $('syncBinId').value     = syncConfig.binId || '';
+
+    if (syncConfig.lastSync) {
+      const localTime = new Date(syncConfig.lastSync).toLocaleString('zh-CN');
+      showSyncStatus('上次同步：' + localTime, 'var(--text-soft)');
+    } else {
+      showSyncStatus('尚未同步', 'var(--text-light)');
+    }
+    $('syncModal').classList.add('active');
+  }
+  function closeSyncModal() { $('syncModal').classList.remove('active'); }
+
+  async function saveSyncFromModal() {
+    const enabled = $('syncEnabled').checked;
+    const apiKey  = $('syncApiKey').value.trim();
+    const binId   = $('syncBinId').value.trim();
+
+    if (enabled) {
+      if (!apiKey || !binId) {
+        alert('启用同步需要同时填写 API Key 和 Bin ID');
+        return;
+      }
+    }
+    syncConfig.enabled = enabled;
+    syncConfig.apiKey  = apiKey;
+    syncConfig.binId   = binId;
+    saveSyncConfig();
+    updateSyncBadge();
+
+    if (enabled) {
+      showSyncStatus('正在测试连接…', 'var(--text-soft)');
+      const ok = await uploadToCloud({ silent: false });
+      if (ok) {
+        showSyncStatus('✓ 连接成功，已上传本地数据', 'var(--green)');
+      }
+    } else {
+      showSyncStatus('已关闭同步，数据仅保存在本机', 'var(--text-light)');
+    }
+  }
+
+  async function manualUpload() {
+    if (!syncConfig.apiKey || !syncConfig.binId) {
+      alert('请先填写 API Key 和 Bin ID');
+      return;
+    }
+    syncConfig.enabled = true;
+    saveSyncConfig();
+    updateSyncBadge();
+    await uploadToCloud({ silent: false });
+  }
+
+  async function manualDownload() {
+    if (!syncConfig.apiKey || !syncConfig.binId) {
+      alert('请先填写 API Key 和 Bin ID');
+      return;
+    }
+    if (!confirm('将用云端数据覆盖本地数据，确定继续？')) return;
+    showSyncStatus('拉取云端数据…', 'var(--text-soft)');
+    try {
+      const cloud = await fetchFromCloud();
+      if (!cloud) {
+        showSyncStatus('云端暂无数据', 'var(--text-light)');
+        return;
+      }
+      applyCloudData(cloud);
+      renderFoodLibrary();
+      renderAll();
+      showSyncStatus('✓ 已从云端覆盖本地 ' + new Date().toLocaleTimeString('zh-CN'), 'var(--green)');
+    } catch (e) {
+      showSyncStatus('⚠ 拉取失败：' + e.message, 'var(--red)');
+    }
+  }
+
+  function clearSync() {
+    if (!confirm('确定断开云同步吗？\n\n本机数据不会被删除，只是停止与云端同步。')) return;
+    syncConfig.enabled = false;
+    syncConfig.lastCloudModified = null;
+    saveSyncConfig();
+    updateSyncBadge();
+    showSyncStatus('已断开同步', 'var(--text-light)');
+  }
+
+  /* ============================================================
+     16. 事件绑定
+     ============================================================ */
+  function bindEvents() {
+    // 搜索
+    $('foodSearch').addEventListener('input', e => {
+      searchQuery = e.target.value;
+      renderFoodLibrary();
+    });
+
+    // 食物库点击
+    $('foodListContainer').addEventListener('click', e => {
+      const addBtn = e.target.closest('[data-action="add"]');
+      if (addBtn) { e.stopPropagation(); addPortion(addBtn.dataset.foodId); return; }
+      const item = e.target.closest('.food-item');
+      if (item) addPortion(item.dataset.foodId);
+    });
+
+    // 已选列表点击
+    $('selectedListContainer').addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const { action, foodId } = btn.dataset;
+      if (action === 'inc') addPortion(foodId);
+      else if (action === 'dec') decrementPortion(foodId);
+      else if (action === 'remove') {
+        if (confirm('确定移除该食物的所有份数吗？')) removeAllPortions(foodId);
+      }
+    });
+
+    // 日期导航
+    $('prevDayBtn').addEventListener('click', () => shiftDate(-1));
+    $('nextDayBtn').addEventListener('click', () => shiftDate(1));
+    $('todayBtn').addEventListener('click', () => setDate(todayStr()));
+    $('datePicker').addEventListener('change', e => {
+      if (e.target.value) setDate(e.target.value);
+    });
+
+    // 操作按钮
+    $('clearDayBtn').addEventListener('click', clearDay);
+    $('copyYesterdayBtn').addEventListener('click', copyYesterday);
+
+    // 底部工具栏
+    $('manageFoodsBtn').addEventListener('click', openFoodsModal);
+    $('calendarBtn').addEventListener('click', openCalendar);
+    $('historyBtn').addEventListener('click', openHistory);
+    $('syncBtn').addEventListener('click', openSyncModal);
+    $('exportBtn').addEventListener('click', exportBackup);
+    $('importBtn').addEventListener('click', () => $('importFile').click());
+    $('importFile').addEventListener('change', e => {
+      if (e.target.files[0]) { importBackup(e.target.files[0]); e.target.value = ''; }
+    });
+    $('goalsBtn').addEventListener('click', openGoals);
+
+    // 食物管理弹窗
+    $('closeFoods').addEventListener('click', closeFoodsModal);
+    $('foodsModal').addEventListener('click', e => {
+      if (e.target === $('foodsModal')) closeFoodsModal();
+    });
+    $('showFormBtn').addEventListener('click', () => showForm(false));
+    $('cancelFoodBtn').addEventListener('click', hideForm);
+    $('saveFoodBtn').addEventListener('click', saveFoodFromForm);
+    ['foodNameInput','foodCategoryInput','foodEnergyInput','foodProteinInput','foodSodiumInput']
+      .forEach(id => {
+        $(id).addEventListener('keydown', e => {
+          if (e.key === 'Enter') { e.preventDefault(); saveFoodFromForm(); }
+        });
+      });
+    $('foodsListContainer').addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const { action, id } = btn.dataset;
+      if (action === 'edit-food') {
+        const food = foodMap.get(id);
+        if (food) showForm(true, food);
+      } else if (action === 'delete-food') {
+        deleteFood(id);
+      }
+    });
+
+    // 日历弹窗
+    $('closeCalendar').addEventListener('click', closeCalendar);
+    $('calendarModal').addEventListener('click', e => {
+      if (e.target === $('calendarModal')) closeCalendar();
+    });
+    $('calPrevMonth').addEventListener('click', () => shiftCalMonth(-1));
+    $('calNextMonth').addEventListener('click', () => shiftCalMonth(1));
+    $('calTodayBtn').addEventListener('click', () => {
+      const d = new Date();
+      calYear = d.getFullYear();
+      calMonth = d.getMonth();
+      renderCalendar();
+    });
+    $('calendarGrid').addEventListener('click', e => {
+      const cell = e.target.closest('.calendar-day[data-date]');
+      if (!cell) return;
+      setDate(cell.dataset.date);
+      closeCalendar();
+    });
+
+    // 历史记录弹窗
+    $('closeHistory').addEventListener('click', closeHistory);
+    $('historyModal').addEventListener('click', e => {
+      if (e.target === $('historyModal')) closeHistory();
+    });
+    $('historyList').addEventListener('click', e => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const { action, date } = btn.dataset;
+      if (action === 'view') {
+        setDate(date);
+        closeHistory();
+      } else if (action === 'del-date') {
+        if (confirm(`确定删除 ${date} 的全部记录吗？`)) {
+          delete allData[date];
+          saveAllData();
+          openHistory();
+          if (date === currentDate) renderDayIntake();
+        }
+      }
+    });
+
+    // 目标弹窗
+    $('closeGoals').addEventListener('click', closeGoals);
+    $('goalsModal').addEventListener('click', e => {
+      if (e.target === $('goalsModal')) closeGoals();
+    });
+    $('saveGoalsBtn').addEventListener('click', saveGoalsFromModal);
+
+    // 同步弹窗
+    $('closeSync').addEventListener('click', closeSyncModal);
+    $('syncModal').addEventListener('click', e => {
+      if (e.target === $('syncModal')) closeSyncModal();
+    });
+    $('saveSyncBtn').addEventListener('click', saveSyncFromModal);
+    $('manualUploadBtn').addEventListener('click', manualUpload);
+    $('manualDownloadBtn').addEventListener('click', manualDownload);
+    $('clearSyncBtn').addEventListener('click', clearSync);
+
+    // 快捷键
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        closeFoodsModal(); closeCalendar(); closeHistory();
+        closeGoals(); closeSyncModal();
+        return;
+      }
+      if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+      if (document.querySelector('.modal.active')) return;
+      if (e.key === 'ArrowLeft')  shiftDate(-1);
+      if (e.key === 'ArrowRight') shiftDate(1);
+    });
+
+    // 页面关闭前尝试上传（
+    window.addEventListener('beforeunload', () => {
+      if (syncConfig.enabled && syncConfig.apiKey && syncConfig.binId) {
+        // 使用 sendBeacon 可能更稳，但这里数据量小，直接同步 fetch 一般也来得及
+        // 实际生产建议使用 sendBeacon + Blob
+        const payload = JSON.stringify(buildPayload());
+        try {
+          const blob = new Blob([payload], { type: 'application/json' });
+          navigator.sendBeacon(
+            `https://api.jsonbin.io/v3/b/${syncConfig.binId}`,
+            blob
+          );
+        } catch (e) {}
+      }
+    });
+  }
+
+  /* ============================================================
+     17. 初始化
+     ============================================================ */
+  function init() {
+    renderFoodLibrary();
+    renderAll();
+    updateSyncBadge();
+    bindEvents();
+
+    // 启动后检查云端数据
+    if (syncConfig.enabled) {
+      // 稍等，等 UI 渲染完成
+      setTimeout(() => initialCloudCheck(), 300);
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
