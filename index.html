@@ -1012,7 +1012,7 @@
     }, 2000);
   }
 
-  // 启动时检查云端
+  // 启动时检查云端：云端更新则自动覆盖本地，不再弹窗
   async function initialCloudCheck() {
     if (!syncConfig.enabled || !syncConfig.apiKey || !syncConfig.binId) return;
     if (initialCloudCheckDone) return;
@@ -1032,26 +1032,13 @@
       const cloudTime = cloud.lastModified ? new Date(cloud.lastModified).getTime() : 0;
 
       if (cloudTime > localTime + 1000) {
-        // 云端更新
-        const localCount = Object.keys(allData).length;
-        const cloudCount = cloud.allData ? Object.keys(cloud.allData).length : 0;
-        const msg = `检测到云端有更新的数据：\n\n` +
-                    `· 云端更新于：${new Date(cloud.lastModified).toLocaleString('zh-CN')}\n` +
-                    `· 本地记录 ${localCount} 天，云端记录 ${cloudCount} 天\n` +
-                    `· 本地食物 ${foods.length} 种，云端食物 ${(cloud.foods || []).length} 种\n\n` +
-                    `是否用云端数据覆盖本地？\n\n` +
-                    `点击"确定"：采用云端数据（推荐）\n` +
-                    `点击"取消"：保留本地数据并上传到云端`;
-        if (confirm(msg)) {
-          applyCloudData(cloud);
-          renderFoodLibrary();
-          renderAll();
-          showSyncStatus('✓ 已从云端更新 ' + new Date().toLocaleTimeString('zh-CN'), 'var(--green)');
-        } else {
-          await uploadToCloud({ silent: true });
-        }
+        // 云端更新：默认直接用云端覆盖本地，不再弹窗
+        applyCloudData(cloud);
+        renderFoodLibrary();
+        renderAll();
+        showSyncStatus('✓ 已从云端更新 ' + new Date().toLocaleTimeString('zh-CN'), 'var(--green)');
       } else {
-        // 本地更新或相同 → 上传
+        // 本地更新或相同 → 上传本地
         await uploadToCloud({ silent: true });
       }
     } catch (e) {
@@ -1841,11 +1828,9 @@
       if (e.key === 'ArrowRight') shiftDate(1);
     });
 
-    // 页面关闭前尝试上传（
+    // 页面关闭前尝试上传
     window.addEventListener('beforeunload', () => {
       if (syncConfig.enabled && syncConfig.apiKey && syncConfig.binId) {
-        // 使用 sendBeacon 可能更稳，但这里数据量小，直接同步 fetch 一般也来得及
-        // 实际生产建议使用 sendBeacon + Blob
         const payload = JSON.stringify(buildPayload());
         try {
           const blob = new Blob([payload], { type: 'application/json' });
@@ -1869,7 +1854,6 @@
 
     // 启动后检查云端数据
     if (syncConfig.enabled) {
-      // 稍等，等 UI 渲染完成
       setTimeout(() => initialCloudCheck(), 300);
     }
   }
