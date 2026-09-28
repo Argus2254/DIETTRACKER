@@ -1609,32 +1609,33 @@
   function closeSyncModal() { $('syncModal').classList.remove('active'); }
 
   async function saveSyncFromModal() {
-    const enabled = $('syncEnabled').checked;
-    const apiKey  = $('syncApiKey').value.trim();
-    const binId   = $('syncBinId').value.trim();
+  const enabled = $('syncEnabled').checked;
+  const apiKey  = $('syncApiKey').value.trim();
+  const binId   = $('syncBinId').value.trim();
 
-    if (enabled) {
-      if (!apiKey || !binId) {
-        alert('启用同步需要同时填写 API Key 和 Bin ID');
-        return;
-      }
-    }
-    syncConfig.enabled = enabled;
-    syncConfig.apiKey  = apiKey;
-    syncConfig.binId   = binId;
-    saveSyncConfig();
-    updateSyncBadge();
-
-    if (enabled) {
-      showSyncStatus('正在测试连接…', 'var(--text-soft)');
-      const ok = await uploadToCloud({ silent: false });
-      if (ok) {
-        showSyncStatus('✓ 连接成功，已上传本地数据', 'var(--green)');
-      }
-    } else {
-      showSyncStatus('已关闭同步，数据仅保存在本机', 'var(--text-light)');
+  if (enabled) {
+    if (!apiKey || !binId) {
+      alert('启用同步需要同时填写 API Key 和 Bin ID');
+      return;
     }
   }
+  syncConfig.enabled = enabled;
+  syncConfig.apiKey  = apiKey;
+  syncConfig.binId   = binId;
+  // 重置本地记录的云端时间戳，确保首次配置时会优先拉取云端
+  syncConfig.lastCloudModified = null;
+  saveSyncConfig();
+  updateSyncBadge();
+
+  if (enabled) {
+    // 不要直接上传本地数据！先检查云端有没有数据
+    showSyncStatus('正在检查云端数据…', 'var(--text-soft)');
+    initialCloudCheckDone = false;
+    await initialCloudCheck();
+  } else {
+    showSyncStatus('已关闭同步，数据仅保存在本机', 'var(--text-light)');
+  }
+}
 
   async function manualUpload() {
     if (!syncConfig.apiKey || !syncConfig.binId) {
