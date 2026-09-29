@@ -82,7 +82,11 @@
     display: grid; grid-template-columns: 1.05fr 0.95fr;
     gap: 18px; align-items: start;
   }
-  @media (max-width: 820px) { .layout { grid-template-columns: 1fr; } }
+  /* 手机端：当日摄入在前，食物库在后 */
+  @media (max-width: 820px) {
+    .layout { grid-template-columns: 1fr; }
+    .layout .panel-intake { order: -1; }
+  }
 
   .panel {
     background: var(--panel); border-radius: var(--radius-lg);
@@ -112,37 +116,33 @@
   }
   .food-category {
     font-size: 0.72rem; font-weight: 700; color: var(--text-light);
-    letter-spacing: 0.08em; margin: 14px 0 6px 6px; text-transform: uppercase;
+    letter-spacing: 0.08em; margin: 16px 0 8px 2px; text-transform: uppercase;
   }
   .food-category:first-child { margin-top: 0; }
-  .food-item {
-    display: flex; align-items: center; justify-content: space-between;
-    background: #f9fcff; border: 1px solid var(--border);
-    border-radius: 14px; padding: 11px 14px; margin-bottom: 8px;
+
+  /* 食物标签：只显示名称，宽度随名称长度自适应 */
+  .food-chips {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 4px;
+  }
+  .food-chip {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: inherit; font-size: 0.88rem; font-weight: 600;
+    color: var(--text); background: #f9fcff;
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 9px 15px; line-height: 1.2;
     cursor: pointer; transition: all 0.12s;
+    max-width: 100%; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    -webkit-tap-highlight-color: transparent;
   }
-  .food-item:hover {
-    background: #eef5ff; border-color: #aac8ff; transform: translateX(2px);
+  .food-chip:hover {
+    background: #eef5ff; border-color: #aac8ff;
+    color: var(--primary-dark); transform: translateY(-1px);
   }
-  .food-info { flex: 1; min-width: 0; }
-  .food-name {
-    font-weight: 600; font-size: 0.92rem; margin-bottom: 5px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  .food-chip:active {
+    transform: scale(0.96); background: #e3edfe; border-color: var(--primary);
   }
-  .nutri-row {
-    display: flex; gap: 12px; font-size: 0.76rem;
-    color: var(--text-soft); flex-wrap: wrap;
-  }
-  .nutri-row b { color: var(--text); font-weight: 700; }
-  .add-btn {
-    width: 32px; height: 32px; border-radius: 50%; background: white;
-    border: 1.5px solid var(--primary); color: var(--primary);
-    font-size: 1.25rem; font-weight: 500; display: flex;
-    align-items: center; justify-content: center; cursor: pointer;
-    flex-shrink: 0; margin-left: 10px; line-height: 1;
-    transition: all 0.15s; font-family: inherit;
-  }
-  .add-btn:hover { background: var(--primary); color: white; transform: scale(1.1); }
 
   /* ---------- 汇总卡片 ---------- */
   .summary-cards {
@@ -553,7 +553,7 @@
 
   <!-- ============ 主体 ============ -->
   <div class="layout">
-    <section class="panel">
+    <section class="panel panel-library">
       <div class="panel-header">
         <h2>📋 食物库</h2>
         <input type="text" id="foodSearch" class="search-input" placeholder="🔍 搜索食物...">
@@ -561,7 +561,7 @@
       <div class="food-list" id="foodListContainer"></div>
     </section>
 
-    <section class="panel">
+    <section class="panel panel-intake">
       <div class="panel-header">
         <h2 id="currentDateTitle">📊 当日摄入</h2>
       </div>
@@ -1077,6 +1077,24 @@
     return 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
   }
 
+  /* ---------- 最近食用时间表 ----------
+     遍历全部历史记录，得到 foodId → 最近一次被食用的时间戳。
+     用于食物库排序：最近吃过的食物排在前面。 */
+  function buildLastUsedMap() {
+    const map = new Map();
+    for (const date in allData) {
+      const items = allData[date];
+      if (!Array.isArray(items)) continue;
+      const t = new Date(date + 'T00:00:00').getTime();
+      if (isNaN(t)) continue;
+      for (const it of items) {
+        const prev = map.get(it.foodId) || 0;
+        if (t > prev) map.set(it.foodId, t);
+      }
+    }
+    return map;
+  }
+
   /* ============================================================
      7. 渲染 - 主界面
      ============================================================ */
@@ -1085,6 +1103,11 @@
     $('currentDateTitle').textContent = '📊 ' + formatDateLabel(currentDate);
   }
 
+  /* 食物库：
+     - 标签只显示名称，宽度随名称长度自适应
+     - 排序：最近吃过的食物排在前面
+       · 分类内部：按该食物最近食用时间降序，未吃过的按名称
+       · 分类之间：按该分类最近一次食用时间降序，未吃过的分类按名称 */
   function renderFoodLibrary() {
     if (foods.length === 0) {
       $('foodListContainer').innerHTML = `
@@ -1105,6 +1128,10 @@
       return;
     }
 
+    // 全局最近食用时间表
+    const lastUsed = buildLastUsedMap();
+
+    // 先按分类分组
     const groups = {};
     list.forEach(f => {
       const cat = f.category && f.category.trim() ? f.category.trim() : '未分类';
@@ -1112,23 +1139,37 @@
       groups[cat].push(f);
     });
 
-    let html = '';
-    for (const cat of Object.keys(groups)) {
-      html += `<div class="food-category">${escapeHtml(cat)}</div>`;
-      groups[cat].forEach(food => {
-        html += `
-          <div class="food-item" data-food-id="${food.id}">
-            <div class="food-info">
-              <div class="food-name">${escapeHtml(food.name)}</div>
-              <div class="nutri-row">
-                <span>⚡ <b>${fmtNum(food.energy)}</b> kcal</span>
-                <span>🥩 <b>${fmtNum(food.protein)}</b> g</span>
-                <span>🧂 <b>${fmtNum(food.sodium)}</b> mg</span>
-              </div>
-            </div>
-            <button class="add-btn" data-action="add" data-food-id="${food.id}" title="添加一份">+</button>
-          </div>`;
+    // 分类内排序 + 记录分类的最近食用时间
+    const catLastUsed = {};
+    for (const cat in groups) {
+      groups[cat].sort((a, b) => {
+        const ta = lastUsed.get(a.id) || 0;
+        const tb = lastUsed.get(b.id) || 0;
+        if (ta !== tb) return tb - ta;        // 最近吃过的在前
+        return a.name.localeCompare(b.name, 'zh-CN');
       });
+      catLastUsed[cat] = groups[cat].reduce(
+        (m, f) => Math.max(m, lastUsed.get(f.id) || 0), 0
+      );
+    }
+
+    // 分类之间：最近有食用的分类排在前
+    const catOrder = Object.keys(groups).sort((a, b) => {
+      const ta = catLastUsed[a], tb = catLastUsed[b];
+      if (ta !== tb) return tb - ta;
+      return a.localeCompare(b, 'zh-CN');
+    });
+
+    let html = '';
+    for (const cat of catOrder) {
+      html += `<div class="food-category">${escapeHtml(cat)}</div>`;
+      html += '<div class="food-chips">';
+      groups[cat].forEach(food => {
+        const tip = `${food.name} · ⚡${fmtNum(food.energy)}kcal 🥩${fmtNum(food.protein)}g 🧂${fmtNum(food.sodium)}mg`;
+        html += `<button type="button" class="food-chip" data-food-id="${food.id}"
+                   title="${escapeHtml(tip)}">${escapeHtml(food.name)}</button>`;
+      });
+      html += '</div>';
     }
     $('foodListContainer').innerHTML = html;
   }
@@ -1412,6 +1453,7 @@
     setDayItems(currentDate, items);
     saveAllData();
     renderDayIntake();
+    // 注意：不在此处重排食物库，避免用户连续点击时标签位置跳动
   }
   function decrementPortion(foodId) {
     const items = getDayItems(currentDate);
@@ -1689,12 +1731,10 @@
       renderFoodLibrary();
     });
 
-    // 食物库点击
+    // 食物库点击 → 直接添加一份
     $('foodListContainer').addEventListener('click', e => {
-      const addBtn = e.target.closest('[data-action="add"]');
-      if (addBtn) { e.stopPropagation(); addPortion(addBtn.dataset.foodId); return; }
-      const item = e.target.closest('.food-item');
-      if (item) addPortion(item.dataset.foodId);
+      const chip = e.target.closest('.food-chip[data-food-id]');
+      if (chip) addPortion(chip.dataset.foodId);
     });
 
     // 已选列表点击
