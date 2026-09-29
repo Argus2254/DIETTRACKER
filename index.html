@@ -257,6 +257,32 @@
   }
   .empty-message .btn-inline:hover { background: var(--fill-accent-dark); }
 
+  /* ---------- 当日备注 ---------- */
+  .notes-section {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .notes-header {
+    font-size: 0.82rem; font-weight: 600; color: var(--text-soft);
+    margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .notes-textarea {
+    width: 100%; border: 1px solid var(--border-strong);
+    border-radius: 12px; padding: 10px 12px;
+    font-family: inherit; font-size: 0.85rem;
+    color: var(--text); background: #f8fbff;
+    resize: vertical; min-height: 62px; max-height: 200px;
+    outline: none; transition: all 0.15s; line-height: 1.5;
+    display: block;
+  }
+  .notes-textarea:focus {
+    border-color: var(--fill-accent-dark);
+    background: #f8fffc;
+    box-shadow: 0 0 0 3px rgba(170, 255, 221, 0.35);
+  }
+  .notes-textarea::placeholder { color: var(--text-light); }
+
   /* ---------- 按钮 ---------- */
   .action-buttons { display: flex; gap: 9px; margin-top: 8px; }
   .btn {
@@ -630,6 +656,11 @@
         <span class="count-badge" id="selectedCount">0</span>
       </div>
       <div class="selected-list" id="selectedListContainer"></div>
+      <div class="notes-section">
+        <div class="notes-header">📝 当日备注</div>
+        <textarea id="dayNote" class="notes-textarea"
+                  placeholder="记录今天的饮食总结、感受……" rows="3"></textarea>
+      </div>
       <div class="action-buttons">
         <button class="btn btn-secondary" id="copyYesterdayBtn">📋 复制昨日</button>
         <button class="btn btn-danger" id="clearDayBtn">🧹 清空当日</button>
@@ -813,6 +844,7 @@
   const DATA_KEY   = 'diet-tracker-data-v1';
   const GOALS_KEY  = 'diet-tracker-goals-v1';
   const SYNC_KEY   = 'diet-tracker-sync-v1';
+  const NOTES_KEY  = 'diet-tracker-notes-v1';
 
   /* ============================================================
      2. 工具函数
@@ -857,6 +889,7 @@
   let foods = [];
   let foodMap = new Map();
   let allData = {};
+  let notes = {};
   let goals = { energy: 2000, protein: 75, sodium: 2000 };
 
   let currentDate = todayStr();
@@ -911,6 +944,17 @@
     scheduleSync();
   }
 
+  function loadNotes() {
+    try {
+      const raw = localStorage.getItem(NOTES_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+  function saveNotes() {
+    try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); } catch (e) {}
+    scheduleSync();
+  }
+
   function loadGoals() {
     try {
       const raw = localStorage.getItem(GOALS_KEY);
@@ -936,6 +980,7 @@
   foods    = loadFoods();
   rebuildFoodMap();
   allData  = loadAllData();
+  notes    = loadNotes();
   goals    = loadGoals();
   loadSyncConfig();
 
@@ -977,6 +1022,7 @@
       foods: foods,
       allData: allData,
       goals: goals,
+      notes: notes,
     };
   }
 
@@ -1055,6 +1101,10 @@
       goals = Object.assign({}, goals, cloud.goals);
       try { localStorage.setItem(GOALS_KEY, JSON.stringify(goals)); } catch (e) {}
     }
+    if (cloud.notes && typeof cloud.notes === 'object') {
+      notes = cloud.notes;
+      try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); } catch (e) {}
+    }
     if (cloud.lastModified) {
       syncConfig.lastSync = cloud.lastModified;
       syncConfig.lastCloudModified = cloud.lastModified;
@@ -1092,6 +1142,7 @@
         applyCloudData(cloud);
         renderFoodLibrary();
         renderAll();
+        renderDayNote();
         showSyncStatus('✓ 已从云端更新 ' + new Date().toLocaleTimeString('zh-CN'), 'var(--green)');
       } else {
         await uploadToCloud({ silent: true });
@@ -1152,6 +1203,14 @@
     $('datePickerText').textContent = currentDate;
     $('datePicker').title = '选择日期 / 查看月历 · 当前 ' + formatDateLabel(currentDate);
     $('currentDateTitle').textContent = '📊 ' + formatDateLabel(currentDate);
+  }
+
+  function renderDayNote() {
+    const el = $('dayNote');
+    if (!el) return;
+    // 用户正在输入时不要覆盖
+    if (document.activeElement === el) return;
+    el.value = notes[currentDate] || '';
   }
 
   function renderFoodLibrary() {
@@ -1548,6 +1607,7 @@
   function setDate(dateStr) {
     currentDate = dateStr;
     renderAll();
+    renderDayNote();
   }
   function shiftDate(days) {
     const d = new Date(currentDate + 'T00:00:00');
@@ -1573,7 +1633,7 @@
           <div class="history-row ${date === currentDate ? 'history-current' : ''}">
             <div class="history-date">
               <div class="history-date-main">${formatDateLabel(date)}</div>
-              <div class="history-date-sub">${items.length} 项 · 共 ${count} 份</div>
+              <div class="history-date-sub">${items.length} 项 · 共 ${count} 份${notes[date] ? ' · 📝' : ''}</div>
             </div>
             <div class="history-nutri">
               <span class="${over ? 'over' : ''}">⚡ ${fmtNum(t.energy)}</span>
@@ -1602,6 +1662,7 @@
       foods: foods,
       goals: goals,
       data: allData,
+      notes: notes,
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url  = URL.createObjectURL(blob);
@@ -1624,8 +1685,9 @@
         const importedFoods = Array.isArray(backup.foods) ? backup.foods : null;
         const importedData  = backup.data && typeof backup.data === 'object' ? backup.data : null;
         const importedGoals = backup.goals;
+        const importedNotes = backup.notes && typeof backup.notes === 'object' ? backup.notes : null;
 
-        if (!importedFoods && !importedData) throw new Error('文件不包含可导入的数据');
+        if (!importedFoods && !importedData && !importedNotes) throw new Error('文件不包含可导入的数据');
 
         const msg = `导入将替换当前所有数据：\n` +
                     `· 当前食物 ${foods.length} 种 → 导入食物 ${importedFoods ? importedFoods.length : 0} 种\n` +
@@ -1635,6 +1697,8 @@
         if (importedFoods) { foods = importedFoods; }
         if (importedData)  { allData = importedData; }
         if (importedGoals) { goals = Object.assign({}, goals, importedGoals); }
+        if (importedNotes) { notes = importedNotes; }
+        try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); } catch (e) {}
 
         rebuildFoodMap();
         try { localStorage.setItem(FOODS_KEY, JSON.stringify(foods)); } catch (e) {}
@@ -1643,6 +1707,7 @@
 
         renderFoodLibrary();
         renderAll();
+        renderDayNote();
         scheduleSync();
         alert('导入成功！');
       } catch (err) {
@@ -1745,6 +1810,7 @@
       applyCloudData(cloud);
       renderFoodLibrary();
       renderAll();
+      renderDayNote();
       showSyncStatus('✓ 已从云端覆盖本地 ' + new Date().toLocaleTimeString('zh-CN'), 'var(--green)');
     } catch (e) {
       showSyncStatus('⚠ 拉取失败：' + e.message, 'var(--red)');
@@ -1799,6 +1865,14 @@
     // 操作按钮
     $('clearDayBtn').addEventListener('click', clearDay);
     $('copyYesterdayBtn').addEventListener('click', copyYesterday);
+
+    // 当日备注：实时保存
+    $('dayNote').addEventListener('input', e => {
+      const val = e.target.value;
+      if (val.trim()) notes[currentDate] = val;
+      else delete notes[currentDate];
+      saveNotes();
+    });
 
     // 底部工具栏
     $('manageFoodsBtn').addEventListener('click', openFoodsModal);
@@ -1930,6 +2004,7 @@
   function init() {
     renderFoodLibrary();
     renderAll();
+    renderDayNote();
     updateSyncBadge();
     bindEvents();
 
