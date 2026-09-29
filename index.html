@@ -4,13 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>营养智能表格 · 云同步版</title>
+<!-- 引用同目录下的 DIET.png 作为图标 -->
 <link rel="apple-touch-icon" href="DIET.png">
 <link rel="icon" type="image/png" href="DIET.png">
 <style>
   :root {
     --primary: #1a5cff;
     --primary-dark: #0d4ce0;
-    --bg: #eef3fa;
+    --bg: #ffffff;
     --panel: #ffffff;
     --border: #dfe8f3;
     --border-strong: #c8d7ea;
@@ -19,7 +20,9 @@
     --text-light: #8ba0b8;
     --green: #1eaa63;
     --red: #e63946;
-    --shadow-sm: 0 2px 6px rgba(20, 40, 80, 0.05);
+    --fill-accent: #aaffdd;
+    --fill-accent-dark: #7fe8be;
+    --shadow-sm: 0 2px 6px rgba(20, 40, 80, 0.06);
     --shadow-md: 0 8px 24px rgba(20, 40, 80, 0.08);
     --radius: 16px;
     --radius-lg: 22px;
@@ -41,10 +44,16 @@
     display: flex; flex-wrap: wrap; gap: 14px;
     justify-content: space-between; align-items: center; margin-bottom: 18px;
   }
-  .title-group { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .title-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .app-logo {
+    width: 38px; height: 38px; border-radius: 10px;
+    object-fit: cover; flex-shrink: 0;
+    background: var(--fill-accent); box-shadow: var(--shadow-sm);
+    display: block;
+  }
   .title-group h1 { font-size: 1.55rem; font-weight: 700; letter-spacing: -0.02em; }
   .version-tag {
-    font-size: 0.7rem; background: #d7e6ff; color: var(--primary-dark);
+    font-size: 0.7rem; background: var(--fill-accent); color: var(--text);
     padding: 2px 10px; border-radius: 30px; font-weight: 600;
   }
   .sync-badge {
@@ -61,6 +70,7 @@
     display: flex; align-items: center; gap: 4px;
     background: var(--panel); padding: 5px;
     border-radius: 14px; box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
   }
   .nav-btn {
     border: none; background: transparent; color: var(--text-soft);
@@ -68,21 +78,30 @@
     border-radius: 10px; cursor: pointer; transition: all 0.15s;
     font-family: inherit;
   }
-  .nav-btn:hover { background: #eef4ff; color: var(--primary); }
-  .nav-btn.today-btn { background: var(--primary); color: white; font-weight: 600; }
-  .nav-btn.today-btn:hover { background: var(--primary-dark); color: white; }
-  .date-input {
-    border: none; font-family: inherit; font-size: 0.9rem;
-    color: var(--text); background: transparent; padding: 6px 4px;
-    outline: none; cursor: pointer; font-weight: 600;
+  .nav-btn:hover { background: #f0fff8; color: var(--text); }
+  .nav-btn.today-btn { background: var(--fill-accent); color: var(--text); font-weight: 600; }
+  .nav-btn.today-btn:hover { background: var(--fill-accent-dark); color: var(--text); }
+
+  /* 日期显示 + 日历入口合二为一 */
+  .date-display-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: #f8fbff; border: 1px solid var(--border-strong);
+    border-radius: 10px; padding: 6px 13px;
+    font-weight: 600; font-size: 0.88rem; color: var(--text);
+    cursor: pointer; font-family: inherit;
+    transition: all 0.15s; line-height: 1.2;
   }
+  .date-display-btn:hover {
+    border-color: var(--fill-accent-dark); background: #f2fff9;
+  }
+  .date-display-btn:active { transform: scale(0.98); }
+  .date-display-btn .cal-icon { font-size: 1rem; line-height: 1; }
 
   /* ---------- 布局 ---------- */
   .layout {
     display: grid; grid-template-columns: 1.05fr 0.95fr;
     gap: 18px; align-items: start;
   }
-  /* 手机端：当日摄入在前，食物库在后 */
   @media (max-width: 820px) {
     .layout { grid-template-columns: 1fr; }
     .layout .panel-intake { order: -1; }
@@ -120,7 +139,6 @@
   }
   .food-category:first-child { margin-top: 0; }
 
-  /* 食物标签：只显示名称，宽度随名称长度自适应 */
   .food-chips {
     display: flex; flex-wrap: wrap; gap: 8px;
     margin-bottom: 4px;
@@ -137,11 +155,11 @@
     -webkit-tap-highlight-color: transparent;
   }
   .food-chip:hover {
-    background: #eef5ff; border-color: #aac8ff;
-    color: var(--primary-dark); transform: translateY(-1px);
+    background: #f0fff8; border-color: var(--fill-accent-dark);
+    color: var(--text); transform: translateY(-1px);
   }
   .food-chip:active {
-    transform: scale(0.96); background: #e3edfe; border-color: var(--primary);
+    transform: scale(0.96); background: var(--fill-accent); border-color: var(--fill-accent-dark);
   }
 
   /* ---------- 汇总卡片 ---------- */
@@ -165,9 +183,14 @@
   }
   .card-unit { font-size: 0.66rem; color: var(--text-light); font-weight: 500; white-space: nowrap; }
   .progress { height: 5px; background: #e2ecf8; border-radius: 10px; overflow: hidden; }
-  .progress-fill { height: 100%; background: var(--green); border-radius: 10px; transition: width 0.3s, background 0.3s; }
+  .progress-fill { height: 100%; background: var(--fill-accent); border-radius: 10px; transition: width 0.3s, background 0.3s; }
   .progress-fill.fill-over { background: var(--red); }
   .card-over .card-value { color: var(--red); }
+
+  @media (max-width: 820px) {
+    .card-value { display: block; font-size: 1.15rem; }
+    .card-unit  { display: block; margin-top: 2px; white-space: normal; }
+  }
 
   /* ---------- 已选列表 ---------- */
   .selected-header {
@@ -176,7 +199,7 @@
     padding: 0 4px 10px; border-bottom: 1px solid var(--border);
   }
   .count-badge {
-    background: #e3edfe; color: var(--primary-dark);
+    background: var(--fill-accent); color: var(--text);
     padding: 2px 12px; border-radius: 30px;
     font-size: 0.78rem; font-weight: 700;
   }
@@ -195,7 +218,7 @@
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   }
   .portion-badge {
-    background: var(--primary); color: white; font-size: 0.68rem;
+    background: var(--fill-accent); color: var(--text); font-size: 0.68rem;
     padding: 1px 9px; border-radius: 20px; font-weight: 700;
   }
   .selected-nutri { display: flex; gap: 8px; font-size: 0.7rem; color: var(--text-soft); flex-wrap: wrap; }
@@ -209,8 +232,8 @@
     justify-content: center; transition: all 0.12s; line-height: 1;
     font-family: inherit;
   }
-  .qty-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
-  .qty-minus:hover { background: #ff9800; border-color: #ff9800; }
+  .qty-btn:hover { background: var(--fill-accent); color: var(--text); border-color: var(--fill-accent-dark); }
+  .qty-minus:hover { background: #ffd8a8; border-color: #ffb74d; color: var(--text); }
   .remove-btn {
     width: 26px; height: 26px; border-radius: 8px; border: none;
     background: transparent; color: #c0cfe0; font-size: 0.85rem;
@@ -226,12 +249,12 @@
   .empty-message p { margin-bottom: 12px; }
   .empty-message .btn-inline {
     display: inline-flex; align-items: center; gap: 5px;
-    background: var(--primary); color: white; border: none;
+    background: var(--fill-accent); color: var(--text); border: none;
     padding: 8px 18px; border-radius: 30px; font-size: 0.82rem;
     font-weight: 600; cursor: pointer; transition: all 0.15s;
     font-family: inherit;
   }
-  .empty-message .btn-inline:hover { background: var(--primary-dark); }
+  .empty-message .btn-inline:hover { background: var(--fill-accent-dark); }
 
   /* ---------- 按钮 ---------- */
   .action-buttons { display: flex; gap: 9px; margin-top: 8px; }
@@ -251,9 +274,9 @@
     color: var(--text-soft); padding: 9px 16px; border-radius: 12px;
     font-size: 0.83rem;
   }
-  .btn-outline:hover { border-color: var(--primary); color: var(--primary); background: #f5f9ff; }
-  .btn-primary { background: var(--primary); color: white; box-shadow: 0 6px 14px rgba(26, 92, 255, 0.25); }
-  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-outline:hover { border-color: var(--fill-accent-dark); color: var(--text); background: #f2fff9; }
+  .btn-primary { background: var(--fill-accent); color: var(--text); box-shadow: 0 6px 14px rgba(170, 255, 221, 0.6); }
+  .btn-primary:hover { background: var(--fill-accent-dark); }
   .btn-full { width: 100%; margin-top: 6px; }
   .btn-ghost {
     background: transparent; border: none; color: var(--primary);
@@ -270,7 +293,7 @@
   }
   .footer-left, .footer-right { display: flex; gap: 8px; flex-wrap: wrap; }
   .footnote {
-    margin-top: 16px; font-size: 0.72rem; color: var(--text-light);
+    margin-top: 16px; font-size: 0.72rem; color: var(--text-soft);
     text-align: center; line-height: 1.5;
   }
 
@@ -349,7 +372,7 @@
     border-radius: 12px; padding: 10px 14px; gap: 10px;
     transition: all 0.12s;
   }
-  .fm-item:hover { border-color: #aac8ff; background: #f5f9ff; }
+  .fm-item:hover { border-color: var(--fill-accent-dark); background: #f8fffc; }
   .fm-info { flex: 1; min-width: 0; }
   .fm-name {
     font-weight: 600; font-size: 0.88rem;
@@ -357,7 +380,7 @@
     gap: 8px; flex-wrap: wrap;
   }
   .fm-cat {
-    font-size: 0.65rem; background: #e9f0fa; color: var(--text-soft);
+    font-size: 0.65rem; background: var(--fill-accent); color: var(--text);
     padding: 1px 8px; border-radius: 20px; font-weight: 600;
   }
   .fm-nutri {
@@ -372,7 +395,7 @@
     color: var(--text-soft); font-size: 0.72rem; font-weight: 600;
     cursor: pointer; transition: all 0.12s; font-family: inherit;
   }
-  .fm-btn:hover { border-color: var(--primary); color: var(--primary); background: #f5f9ff; }
+  .fm-btn:hover { border-color: var(--fill-accent-dark); color: var(--text); background: #f2fff9; }
   .fm-btn-danger:hover { border-color: var(--red); color: var(--red); background: #fff5f5; }
 
   /* ---------- 历史记录 ---------- */
@@ -382,8 +405,8 @@
     border: 1px solid var(--border); margin-bottom: 8px;
     background: #fbfdff; transition: all 0.12s;
   }
-  .history-row:hover { border-color: #aac8ff; background: #f5f9ff; }
-  .history-current { background: #f0f6ff; border-color: var(--primary); }
+  .history-row:hover { border-color: var(--fill-accent-dark); background: #f8fffc; }
+  .history-current { background: #f2fff9; border-color: var(--fill-accent-dark); }
   .history-date { flex: 1; min-width: 0; }
   .history-date-main { font-weight: 600; font-size: 0.86rem; margin-bottom: 3px; }
   .history-date-sub { font-size: 0.72rem; color: var(--text-light); }
@@ -403,7 +426,7 @@
     color: var(--text-soft); font-size: 0.72rem; font-weight: 600;
     cursor: pointer; transition: all 0.12s; font-family: inherit;
   }
-  .btn-mini:hover { border-color: var(--primary); color: var(--primary); background: #f5f9ff; }
+  .btn-mini:hover { border-color: var(--fill-accent-dark); color: var(--text); background: #f2fff9; }
   .btn-mini-danger:hover { border-color: var(--red); color: var(--red); background: #fff5f5; }
 
   /* ---------- 目标设置表单 ---------- */
@@ -443,7 +466,7 @@
   }
   .checkbox-row span { font-size: 0.9rem; font-weight: 600; color: var(--text-soft); }
   .checkbox-row input[type="checkbox"] {
-    width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer;
+    width: 20px; height: 20px; accent-color: var(--fill-accent-dark); cursor: pointer;
   }
   .help-text {
     font-size: 0.74rem; color: var(--text-light);
@@ -482,7 +505,7 @@
     cursor: pointer; transition: all 0.12s; position: relative;
   }
   .calendar-day:hover {
-    border-color: var(--primary); background: #f5f9ff; transform: translateY(-1px);
+    border-color: var(--fill-accent-dark); background: #f2fff9; transform: translateY(-1px);
   }
   .calendar-day.empty { background: transparent; border: none; cursor: default; }
   .calendar-day.empty:hover { transform: none; border: none; }
@@ -490,10 +513,10 @@
     border-color: var(--primary); background: #eef4ff;
     box-shadow: 0 0 0 2px rgba(26, 92, 255, 0.15);
   }
-  .calendar-day.selected { border-color: var(--primary); background: var(--primary); }
-  .calendar-day.selected .cal-date-num,
-  .calendar-day.selected .cal-calories { color: white; }
-  .calendar-day.selected .cal-calories.empty-cal { color: rgba(255,255,255,0.65); }
+  .calendar-day.selected { border-color: var(--fill-accent-dark); background: var(--fill-accent); }
+  .calendar-day.selected .cal-date-num { color: var(--text); }
+  .calendar-day.selected .cal-calories { color: var(--text-soft); }
+  .calendar-day.selected .cal-calories.over { color: var(--red); }
   .calendar-day.future { opacity: 0.45; }
   .cal-date-num { font-size: 0.85rem; font-weight: 700; color: var(--text); line-height: 1.2; }
   .cal-calories {
@@ -505,7 +528,7 @@
   .cal-legend {
     display: flex; gap: 14px; justify-content: center;
     margin-top: 16px; font-size: 0.72rem;
-    color: var(--text-light); flex-wrap: wrap;
+    color: var(--text-soft); flex-wrap: wrap;
   }
   .cal-legend-item { display: flex; align-items: center; gap: 5px; }
   .cal-dot { width: 10px; height: 10px; border-radius: 3px; }
@@ -524,6 +547,26 @@
   .selected-list::-webkit-scrollbar-thumb:hover,
   .modal-body::-webkit-scrollbar-thumb:hover { background: #a0b5cf; }
 
+  /* ---------- 手机端细节优化 ---------- */
+  @media (max-width: 820px) {
+    .date-nav {
+      width: 100%;
+      justify-content: space-between;
+      gap: 3px;
+    }
+    .date-display-btn {
+      flex: 1 1 auto;
+      min-width: 0;
+      justify-content: center;
+      padding: 7px 10px;
+    }
+    .date-display-btn #datePickerText {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .nav-btn { padding: 7px 9px; font-size: 0.9rem; }
+    .nav-btn.today-btn { padding: 7px 14px; }
+  }
+
   @media (max-width: 520px) {
     .calendar-day { min-height: 56px; padding: 4px 2px; }
     .cal-date-num { font-size: 0.78rem; }
@@ -539,13 +582,18 @@
   <!-- ============ 头部 ============ -->
   <header class="app-header">
     <div class="title-group">
-      <h1>🥗 营养智能表格</h1>
-      <span class="version-tag">云同步版</span>
+      <!-- 直接使用你的 DIET.png，不再有备用图标 -->
+      <img src="DIET.png" alt="营养智能表格图标" class="app-logo">
+      <h1>营养智能表格</h1>
       <span class="sync-badge off" id="syncBadge">☁️ 未启用同步</span>
     </div>
     <div class="date-nav">
       <button id="prevDayBtn" class="nav-btn" title="前一天">◀</button>
-      <input type="date" id="datePicker" class="date-input">
+      <button id="datePicker" class="date-display-btn" title="选择日期 / 查看月历">
+        <span id="datePickerText">----</span>
+        <!-- 替换为你喜欢的另一个日历图标 🗓️ -->
+        <span class="cal-icon">🗓️</span>
+      </button>
       <button id="nextDayBtn" class="nav-btn" title="后一天">▶</button>
       <button id="todayBtn" class="nav-btn today-btn">今天</button>
     </div>
@@ -582,7 +630,6 @@
   <footer class="app-footer">
     <div class="footer-left">
       <button class="btn btn-outline" id="manageFoodsBtn">🍱 管理食物库</button>
-      <button class="btn btn-outline" id="calendarBtn">📅 日历</button>
       <button class="btn btn-outline" id="historyBtn">🗂️ 历史</button>
       <button class="btn btn-outline" id="syncBtn">☁️ 同步设置</button>
     </div>
@@ -632,7 +679,7 @@
       <button class="btn btn-secondary btn-full" id="manualDownloadBtn">⬇️ 从云端拉取并覆盖本地</button>
       <button class="btn btn-danger btn-full" id="clearSyncBtn">🔌 断开同步</button>
 
-      <div id="syncStatus" style="text-align:center;font-size:0.78rem;margin-top:12px;color:var(--text-light);min-height:18px;">
+      <div id="syncStatus" style="text-align:center;font-size:0.78rem;margin-top:12px;color:var(--text-soft);min-height:18px;">
         尚未同步
       </div>
     </div>
@@ -682,7 +729,7 @@
   </div>
 </div>
 
-<!-- ============ 日历弹窗 ============ -->
+<!-- ============ 日历弹窗（兼日期选择） ============ -->
 <div class="modal" id="calendarModal">
   <div class="modal-content modal-large">
     <div class="modal-header">
@@ -811,8 +858,8 @@
     enabled: false,
     apiKey: '',
     binId: '',
-    lastSync: null,          // ISO 字符串：本机上次成功同步时间
-    lastCloudModified: null, // ISO 字符串：云端数据最后修改时间
+    lastSync: null,
+    lastCloudModified: null,
   };
   let syncTimer = null;
   let isSyncing = false;
@@ -908,7 +955,7 @@
     const el = $('syncStatus');
     if (!el) return;
     el.textContent = text || '';
-    el.style.color = color || 'var(--text-light)';
+    el.style.color = color || 'var(--text-soft)';
   }
 
   function buildPayload() {
@@ -1004,7 +1051,6 @@
     }
   }
 
-  // 防抖自动上传
   function scheduleSync() {
     if (!syncConfig.enabled) return;
     if (!syncConfig.apiKey || !syncConfig.binId) return;
@@ -1014,7 +1060,6 @@
     }, 2000);
   }
 
-  // 启动时检查云端：云端更新则自动覆盖本地，不再弹窗
   async function initialCloudCheck() {
     if (!syncConfig.enabled || !syncConfig.apiKey || !syncConfig.binId) return;
     if (initialCloudCheckDone) return;
@@ -1024,7 +1069,6 @@
     try {
       const cloud = await fetchFromCloud();
       if (!cloud) {
-        // 云端为空，把本地推上去
         showSyncStatus('云端为空，正在上传本地数据…', 'var(--text-soft)');
         await uploadToCloud({ silent: true });
         return;
@@ -1034,13 +1078,11 @@
       const cloudTime = cloud.lastModified ? new Date(cloud.lastModified).getTime() : 0;
 
       if (cloudTime > localTime + 1000) {
-        // 云端更新：默认直接用云端覆盖本地，不再弹窗
         applyCloudData(cloud);
         renderFoodLibrary();
         renderAll();
         showSyncStatus('✓ 已从云端更新 ' + new Date().toLocaleTimeString('zh-CN'), 'var(--green)');
       } else {
-        // 本地更新或相同 → 上传本地
         await uploadToCloud({ silent: true });
       }
     } catch (e) {
@@ -1077,9 +1119,6 @@
     return 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
   }
 
-  /* ---------- 最近食用时间表 ----------
-     遍历全部历史记录，得到 foodId → 最近一次被食用的时间戳。
-     用于食物库排序：最近吃过的食物排在前面。 */
   function buildLastUsedMap() {
     const map = new Map();
     for (const date in allData) {
@@ -1099,15 +1138,11 @@
      7. 渲染 - 主界面
      ============================================================ */
   function renderDateHeader() {
-    $('datePicker').value = currentDate;
+    $('datePickerText').textContent = currentDate;
+    $('datePicker').title = '选择日期 / 查看月历 · 当前 ' + formatDateLabel(currentDate);
     $('currentDateTitle').textContent = '📊 ' + formatDateLabel(currentDate);
   }
 
-  /* 食物库：
-     - 标签只显示名称，宽度随名称长度自适应
-     - 排序：最近吃过的食物排在前面
-       · 分类内部：按该食物最近食用时间降序，未吃过的按名称
-       · 分类之间：按该分类最近一次食用时间降序，未吃过的分类按名称 */
   function renderFoodLibrary() {
     if (foods.length === 0) {
       $('foodListContainer').innerHTML = `
@@ -1128,10 +1163,8 @@
       return;
     }
 
-    // 全局最近食用时间表
     const lastUsed = buildLastUsedMap();
 
-    // 先按分类分组
     const groups = {};
     list.forEach(f => {
       const cat = f.category && f.category.trim() ? f.category.trim() : '未分类';
@@ -1139,13 +1172,12 @@
       groups[cat].push(f);
     });
 
-    // 分类内排序 + 记录分类的最近食用时间
     const catLastUsed = {};
     for (const cat in groups) {
       groups[cat].sort((a, b) => {
         const ta = lastUsed.get(a.id) || 0;
         const tb = lastUsed.get(b.id) || 0;
-        if (ta !== tb) return tb - ta;        // 最近吃过的在前
+        if (ta !== tb) return tb - ta;
         return a.name.localeCompare(b.name, 'zh-CN');
       });
       catLastUsed[cat] = groups[cat].reduce(
@@ -1153,7 +1185,6 @@
       );
     }
 
-    // 分类之间：最近有食用的分类排在前
     const catOrder = Object.keys(groups).sort((a, b) => {
       const ta = catLastUsed[a], tb = catLastUsed[b];
       if (ta !== tb) return tb - ta;
@@ -1379,7 +1410,7 @@
   }
 
   /* ============================================================
-     9. 渲染 - 日历
+     9. 渲染 - 日历（兼日期选择器）
      ============================================================ */
   function renderCalendar() {
     const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
@@ -1453,7 +1484,6 @@
     setDayItems(currentDate, items);
     saveAllData();
     renderDayIntake();
-    // 注意：不在此处重排食物库，避免用户连续点击时标签位置跳动
   }
   function decrementPortion(foodId) {
     const items = getDayItems(currentDate);
@@ -1644,40 +1674,38 @@
       const localTime = new Date(syncConfig.lastSync).toLocaleString('zh-CN');
       showSyncStatus('上次同步：' + localTime, 'var(--text-soft)');
     } else {
-      showSyncStatus('尚未同步', 'var(--text-light)');
+      showSyncStatus('尚未同步', 'var(--text-soft)');
     }
     $('syncModal').classList.add('active');
   }
   function closeSyncModal() { $('syncModal').classList.remove('active'); }
 
   async function saveSyncFromModal() {
-  const enabled = $('syncEnabled').checked;
-  const apiKey  = $('syncApiKey').value.trim();
-  const binId   = $('syncBinId').value.trim();
+    const enabled = $('syncEnabled').checked;
+    const apiKey  = $('syncApiKey').value.trim();
+    const binId   = $('syncBinId').value.trim();
 
-  if (enabled) {
-    if (!apiKey || !binId) {
-      alert('启用同步需要同时填写 API Key 和 Bin ID');
-      return;
+    if (enabled) {
+      if (!apiKey || !binId) {
+        alert('启用同步需要同时填写 API Key 和 Bin ID');
+        return;
+      }
+    }
+    syncConfig.enabled = enabled;
+    syncConfig.apiKey  = apiKey;
+    syncConfig.binId   = binId;
+    syncConfig.lastCloudModified = null;
+    saveSyncConfig();
+    updateSyncBadge();
+
+    if (enabled) {
+      showSyncStatus('正在检查云端数据…', 'var(--text-soft)');
+      initialCloudCheckDone = false;
+      await initialCloudCheck();
+    } else {
+      showSyncStatus('已关闭同步，数据仅保存在本机', 'var(--text-soft)');
     }
   }
-  syncConfig.enabled = enabled;
-  syncConfig.apiKey  = apiKey;
-  syncConfig.binId   = binId;
-  // 重置本地记录的云端时间戳，确保首次配置时会优先拉取云端
-  syncConfig.lastCloudModified = null;
-  saveSyncConfig();
-  updateSyncBadge();
-
-  if (enabled) {
-    // 不要直接上传本地数据！先检查云端有没有数据
-    showSyncStatus('正在检查云端数据…', 'var(--text-soft)');
-    initialCloudCheckDone = false;
-    await initialCloudCheck();
-  } else {
-    showSyncStatus('已关闭同步，数据仅保存在本机', 'var(--text-light)');
-  }
-}
 
   async function manualUpload() {
     if (!syncConfig.apiKey || !syncConfig.binId) {
@@ -1700,7 +1728,7 @@
     try {
       const cloud = await fetchFromCloud();
       if (!cloud) {
-        showSyncStatus('云端暂无数据', 'var(--text-light)');
+        showSyncStatus('云端暂无数据', 'var(--text-soft)');
         return;
       }
       applyCloudData(cloud);
@@ -1718,7 +1746,7 @@
     syncConfig.lastCloudModified = null;
     saveSyncConfig();
     updateSyncBadge();
-    showSyncStatus('已断开同步', 'var(--text-light)');
+    showSyncStatus('已断开同步', 'var(--text-soft)');
   }
 
   /* ============================================================
@@ -1753,9 +1781,9 @@
     $('prevDayBtn').addEventListener('click', () => shiftDate(-1));
     $('nextDayBtn').addEventListener('click', () => shiftDate(1));
     $('todayBtn').addEventListener('click', () => setDate(todayStr()));
-    $('datePicker').addEventListener('change', e => {
-      if (e.target.value) setDate(e.target.value);
-    });
+
+    // 日期显示按钮 → 打开日历（兼日期选择）
+    $('datePicker').addEventListener('click', openCalendar);
 
     // 操作按钮
     $('clearDayBtn').addEventListener('click', clearDay);
@@ -1763,7 +1791,6 @@
 
     // 底部工具栏
     $('manageFoodsBtn').addEventListener('click', openFoodsModal);
-    $('calendarBtn').addEventListener('click', openCalendar);
     $('historyBtn').addEventListener('click', openHistory);
     $('syncBtn').addEventListener('click', openSyncModal);
     $('exportBtn').addEventListener('click', exportBackup);
@@ -1895,7 +1922,6 @@
     updateSyncBadge();
     bindEvents();
 
-    // 启动后检查云端数据
     if (syncConfig.enabled) {
       setTimeout(() => initialCloudCheck(), 300);
     }
