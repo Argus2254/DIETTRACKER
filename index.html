@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>营养智能表格 · 云同步版</title>
+<title>DITETRACKER</title>
 <!-- 引用同目录下的 DIET.png 作为图标 -->
 <link rel="apple-touch-icon" href="DIET.png">
 <link rel="icon" type="image/png" href="DIET.png">
@@ -1228,21 +1228,6 @@
     return 'f_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
   }
 
-  function buildLastUsedMap() {
-    const map = new Map();
-    for (const date in allData) {
-      const items = allData[date];
-      if (!Array.isArray(items)) continue;
-      const t = new Date(date + 'T00:00:00').getTime();
-      if (isNaN(t)) continue;
-      for (const it of items) {
-        const prev = map.get(it.foodId) || 0;
-        if (t > prev) map.set(it.foodId, t);
-      }
-    }
-    return map;
-  }
-
   /* ============================================================
      7. 渲染 - 主界面
      ============================================================ */
@@ -1309,8 +1294,6 @@
       return;
     }
 
-    const lastUsed = buildLastUsedMap();
-
     const groups = {};
     list.forEach(f => {
       const cat = f.category && f.category.trim() ? f.category.trim() : '未分类';
@@ -1318,24 +1301,13 @@
       groups[cat].push(f);
     });
 
-    const catLastUsed = {};
+    // ✅ 每个分类内按食物名称排序
     for (const cat in groups) {
-      groups[cat].sort((a, b) => {
-        const ta = lastUsed.get(a.id) || 0;
-        const tb = lastUsed.get(b.id) || 0;
-        if (ta !== tb) return tb - ta;
-        return a.name.localeCompare(b.name, 'zh-CN');
-      });
-      catLastUsed[cat] = groups[cat].reduce(
-        (m, f) => Math.max(m, lastUsed.get(f.id) || 0), 0
-      );
+      groups[cat].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
     }
 
-    const catOrder = Object.keys(groups).sort((a, b) => {
-      const ta = catLastUsed[a], tb = catLastUsed[b];
-      if (ta !== tb) return tb - ta;
-      return a.localeCompare(b, 'zh-CN');
-    });
+    // ✅ 分类也按名称排序
+    const catOrder = Object.keys(groups).sort((a, b) => a.localeCompare(b, 'zh-CN'));
 
     let html = '';
     for (const cat of catOrder) {
