@@ -597,9 +597,9 @@
     display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
   }
   .calendar-day {
-    min-height: 68px; min-width: 0; border-radius: 12px;
+    min-height: 70px; min-width: 0; border-radius: 12px;
     border: 1px solid var(--border); background: #fbfdff;
-    padding: 6px 3px; display: flex; flex-direction: column;
+    padding: 6px 2px; display: flex; flex-direction: column;
     align-items: center; justify-content: flex-start;
     cursor: pointer; transition: all 0.12s; position: relative;
     overflow: hidden;
@@ -631,14 +631,14 @@
     display: block;
     width: 100%;
     min-width: 0;
-    font-size: 0.6rem;
+    font-size: 0.58rem;
     font-weight: 700;
-    line-height: 1.3;
+    line-height: 1.35;
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
   }
   .cal-num-energy { color: var(--primary-dark); }
   .cal-num-energy.over { color: var(--red); }
@@ -692,10 +692,10 @@
   }
 
   @media (max-width: 520px) {
-    .calendar-day { min-height: 58px; padding: 4px 1px; }
+    .calendar-day { min-height: 62px; padding: 4px 1px; }
     .cal-date-num { font-size: 0.76rem; }
-    .cal-num { font-size: 0.53rem; }
-    .cal-nums { margin-top: 3px; }
+    .cal-num { font-size: 0.5rem; letter-spacing: -0.04em; }
+    .cal-nums { margin-top: 3px; gap: 0; }
     .calendar-grid { gap: 4px; }
     .calendar-weekdays { gap: 4px; }
     .form-row.three-col { grid-template-columns: 1fr; }
@@ -704,7 +704,7 @@
   }
 
   @media (max-width: 380px) {
-    .cal-num { font-size: 0.49rem; }
+    .cal-num { font-size: 0.45rem; letter-spacing: -0.05em; }
     .cal-date-num { font-size: 0.72rem; }
   }
 </style>
@@ -1861,11 +1861,11 @@
       if (isFuture)   classes += ' future';
 
       const energyLine = hasData
-        ? `<div class="cal-num cal-num-energy ${over ? 'over' : ''}">${fmtNum(totals.energy)}</div>`
-        : `<div class="cal-num cal-num-empty">—</div>`;
+        ? `<div class="cal-num cal-num-energy ${over ? 'over' : ''}">${fmtNum(totals.energy)} kcal</div>`
+        : `<div class="cal-num cal-num-empty">— kcal</div>`;
       const proteinLine = hasData
-        ? `<div class="cal-num cal-num-protein">${fmtNum(totals.protein)}</div>`
-        : `<div class="cal-num cal-num-empty">—</div>`;
+        ? `<div class="cal-num cal-num-protein">${fmtNum(totals.protein)} g</div>`
+        : `<div class="cal-num cal-num-empty">— g</div>`;
 
       const tip = hasData
         ? `${dStr} · ${fmtNum(totals.energy)} kcal · ${fmtNum(totals.protein)} g 蛋白质`
